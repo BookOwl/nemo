@@ -1,0 +1,24 @@
+# Helpers
+argument_list = “(“ (ident “,”)* “)”
+character     = [a-zA-Z_]
+call          = ident “(“ (expression “,”)* “)”
+# Literals
+number      = “-“? (“0” / [“1”-“9”] [“0”-“9”]*) (“.” [“0”-“9”]*)?
+identifier  = char (char / [“0”-“9”])*
+lambda      = (identifier / argument_list) “->” expression
+
+# Expressions
+expression = pipe
+primary    = lambda / number / call / ident / “(“ expr “)”
+sum        = product (('+' / '-') product)*
+product    = pipe (('*' / '/') pipe)*
+pipe       = primary (“|” primary)*
+
+# Definitions
+prototype = identifier args
+function  = prototype “=“ expression
+global    = identifier “=“ expression
+definition = function / global
+
+# The program
+program = (definition)+
