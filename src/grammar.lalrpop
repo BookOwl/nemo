@@ -1,0 +1,92 @@
+use ast::{Expr, Op, Statement};
+
+grammar;
+
+
+// Expressions
+pub Expr: Box<Expr> = {
+    Expr ExprOp Factor => Box::new(Expr::Binary(<>)),
+    Factor,
+};
+
+Factor: Box<Expr> = {
+    Factor FactorOp Pipe => Box::new(Expr::Binary(<>)),
+    Pipe,
+};
+
+Pipe: Box<Expr> = {
+    Pipe PipeOp Term => Box::new(Expr::Binary(<>)),
+    Term,
+};
+
+Term: Box<Expr> = {
+    Num => Box::new(Expr::Number(<>)),
+    Name => Box::new(Expr::Name(<>)),
+    Call,
+    Lambda,
+    "pull" => Box::new(Expr::Pull),
+    "(" <Expr> ")",
+    "{" <Statements> "}" => Box::new(Expr::Block(<>))
+};
+
+Num: i32 = <s:r"[0-9]+"> => s.parse::<i32>().unwrap();
+Name: String = <s:r"[a-zA-Z_][a-zA-Z0-9_]*"> => String::from(s);
+
+Call: Box<Expr> = {
+    "(" <Expr> ")" "(" <Exprs> ")" => Box::new(Expr::Call(<>)),
+    <n:Name> "(" <e:Exprs> ")" => Box::new(Expr::Call(Box::new(Expr::Name(n)), e)),
+};
+
+Lambda: Box<Expr> = {
+    <n:Name> "->" "(" <e:Expr> ")" => Box::new(Expr::Lambda(vec![String::from(n)], e)),
+    "|" <Names> "|" "->" "(" <Expr> ")" => Box::new(Expr::Lambda(<>)),
+};
+
+// Statements
+pub Statement: Box<Statement> = {
+    <Name> ":=" <Expr> => Box::new(Statement::Assignment(<>)),
+    "push" <Expr> => Box::new(Statement::Push(<>)),
+};
+
+
+// Helpers
+
+ExprOp: Op = {
+    "+" => Op::Plus,
+    "-" => Op::Minus,
+};
+
+FactorOp: Op = {
+    "*" => Op::Times,
+    "/" => Op::Slash,
+};
+
+PipeOp: Op = {
+    "|" => Op::Pipe,
+};
+
+Exprs = Comma<Expr>;
+Names = Comma<Name>;
+Statements = SemiCol<Statement>;
+
+Comma<T>: Vec<T> = {
+    <v:(<T> ",")*> <e:T?> => match e {
+        None => v,
+        Some(e) => {
+            let mut v = v;
+            v.push(e);
+            v
+        }
+    }
+};
+
+SemiCol<T>: Vec<T> = {
+    <v:(<T> ";")*> <e:T?> => match e {
+        None => v,
+        Some(e) => {
+            let mut v = v;
+            v.push(e);
+            v
+        }
+    }
+};
