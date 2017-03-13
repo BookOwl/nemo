@@ -7,6 +7,7 @@ pub enum Expr {
     Lambda(Vec<String>, Box<Expr>),
     Pull,
     Block(Vec<Box<Statement>>),
+    If(Box<Expr>, Box<Expr>, Box<Expr>)
 }
 
 #[derive(Debug, PartialEq, Clone)]

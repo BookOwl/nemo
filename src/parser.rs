@@ -67,7 +67,7 @@ mod tests {
                                                       Box::new(Expr::Number(1)
                                                   )))));
         assert_eq!(parse_Expr(r"x -> (x + 1)").unwrap(), expected);
-        assert_eq!(parse_Expr(r"|x| -> (x + 1)").unwrap(), expected);
+        assert_eq!(parse_Expr(r"|x| -> x + 1").unwrap(), expected);
     }
     #[test]
     fn test_pipe_parsing() {
@@ -79,7 +79,7 @@ mod tests {
                             )),
                             Op::Pipe,
                             Box::new(Expr::Call(Box::new(Expr::Name(s("foreach"))), vec![Box::new(Expr::Lambda(vec![s("x")], Box::new(Expr::Call(Box::new(Expr::Name(s("display"))), vec![Box::new(Expr::Name(s("x")))]))))]))));
-        let got = parse_Expr(r"range(10) | map(x -> (x * x)) | foreach(x -> (display(x)))").unwrap();
+        let got = parse_Expr(r"range(10) | map(x -> x * x) | foreach(x -> display(x))").unwrap();
         assert_eq!(got, expected);
     }
     #[test]

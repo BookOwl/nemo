@@ -5,7 +5,13 @@ grammar;
 
 // Expressions
 pub Expr: Box<Expr> = {
-    Expr ExprOp Factor => Box::new(Expr::Binary(<>)),
+    If,
+    Lambda,
+    AddExpr,
+};
+
+pub AddExpr: Box<Expr> = {
+    AddExpr ExprOp Factor => Box::new(Expr::Binary(<>)),
     Factor,
 };
 
@@ -23,7 +29,6 @@ Term: Box<Expr> = {
     Num => Box::new(Expr::Number(<>)),
     Name => Box::new(Expr::Name(<>)),
     Call,
-    Lambda,
     "pull" => Box::new(Expr::Pull),
     "(" <Expr> ")",
     "{" <Statements> "}" => Box::new(Expr::Block(<>))
@@ -38,8 +43,12 @@ Call: Box<Expr> = {
 };
 
 Lambda: Box<Expr> = {
-    <n:Name> "->" "(" <e:Expr> ")" => Box::new(Expr::Lambda(vec![String::from(n)], e)),
-    "|" <Names> "|" "->" "(" <Expr> ")" => Box::new(Expr::Lambda(<>)),
+    <n:Name> "->" <e:Expr> => Box::new(Expr::Lambda(vec![String::from(n)], e)),
+    "|" <Names> "|" "->" <Expr> => Box::new(Expr::Lambda(<>)),
+};
+
+If: Box<Expr> = {
+    "if" <Expr> "then" <Expr> "else" <Expr> => Box::new(Expr::If(<>))
 };
 
 // Statements
