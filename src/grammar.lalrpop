@@ -1,12 +1,30 @@
-use ast::{Expr, Op, Statement};
+use ast::{Expr, Op, Statement, Prototype, Definition};
 
 grammar;
 
+// Top level definitions
+
+Prototype: Prototype = {
+    <Name> "(" <Names> ")" => Prototype::new(<>),
+};
+
+pub Definition: Definition = {
+    <Prototype> "=>" <Expr> => Definition::new(<>)
+};
+
+pub Program: Vec<Definition> = {
+    Definition*,
+};
 
 // Expressions
 pub Expr: Box<Expr> = {
-    If,
     Lambda,
+    Control,
+};
+
+Control: Box<Expr> = {
+    If,
+    While,
     AddExpr,
 };
 
@@ -47,16 +65,22 @@ Lambda: Box<Expr> = {
     "|" <Names> "|" "->" <Expr> => Box::new(Expr::Lambda(<>)),
 };
 
+// Control flow expressions.
+
 If: Box<Expr> = {
     "if" <Expr> "then" <Expr> "else" <Expr> => Box::new(Expr::If(<>))
+};
+
+While: Box<Expr> = {
+    "while" <Expr> "do" <Expr> => Box::new(Expr::While(<>))
 };
 
 // Statements
 pub Statement: Box<Statement> = {
     <Name> ":=" <Expr> => Box::new(Statement::Assignment(<>)),
     "push" <Expr> => Box::new(Statement::Push(<>)),
+    <Expr> => Box::new(Statement::Expr(<>))
 };
-
 
 // Helpers
 

@@ -102,4 +102,34 @@ mod tests {
         let got = parse_Expr(r"{spam := 1; push 1}").unwrap();
         assert_eq!(expected, got);
     }
+    #[test]
+    fn test_if_else_parsing() {
+        let expected = Box::new(Expr::If(Box::new(Expr::Number(1)), Box::new(Expr::Number(2)), Box::new(Expr::Number(3))));
+        let got = parse_Expr(r"if 1 then 2 else 3").unwrap();
+        assert_eq!(expected, got);
+        let expected = Box::new(Expr::Lambda(vec![s("x")],
+                                             Box::new(
+                                                 Expr::If(
+                                                     Box::new(Expr::Number(1)),
+                                                     Box::new(Expr::Number(2)),
+                                                     Box::new(Expr::Number(3))
+                                                 )
+                                             )
+                                         ));
+        let got = parse_Expr(r"x -> if 1 then 2 else 3").unwrap();
+        assert_eq!(expected, got);
+    }
+    #[test]
+    fn test_while_parsing() {
+        let expected = Box::new(Expr::While(Box::new(Expr::Number(1)), Box::new(Expr::Number(2))));
+        let got = parse_Expr(r"while 1 do 2").unwrap();
+        assert_eq!(expected, got);
+    }
+    #[test]
+    fn test_program_parsing() {
+        let expected = r#"[Definition { prototype: Prototype { name: "add", args: ["x"] }, body: Binary(Name("x"), Plus, Number(1)) }, Definition { prototype: Prototype { name: "bar", args: ["y"] }, body: Binary(Name("y"), Times, Number(2)) }]"#;
+        let got = format!("{:?}", parse_Program(r"add(x) => x + 1
+        bar(y) => y * 2").unwrap());
+        assert_eq!(got, expected);
+    }
 }
