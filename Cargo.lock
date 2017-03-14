@@ -1,6 +1,6 @@
 [root]
 name = "nemo"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "lalrpop 0.12.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "lalrpop-util 0.12.5 (registry+https://github.com/rust-lang/crates.io-index)",
