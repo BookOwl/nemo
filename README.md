@@ -1,5 +1,5 @@
 # nemo
-A semi-functional (in more ways than one 😉) programming language.
+A fishy programming language.
 
 
 ## License
