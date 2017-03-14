@@ -1,8 +1,8 @@
 [package]
 name = "nemo"
-version = "0.1.0"
+version = "0.0.1"
 authors = ["BookOwl <stanleybookowl@gmail.com>"]
-build = "build.rs" 
+build = "build.rs"
 
 [build-dependencies]
 lalrpop = "0.12.5"
