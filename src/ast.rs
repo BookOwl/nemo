@@ -18,6 +18,12 @@ pub enum Op {
     Times,
     Slash,
     Pipe,
+    Percent,
+    Greater,
+    Lesser,
+    Equals,
+    And,
+    Or,
 }
 
 #[derive(Debug, PartialEq, Clone)]

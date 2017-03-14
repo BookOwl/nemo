@@ -25,10 +25,20 @@ pub Expr: Box<Expr> = {
 Control: Box<Expr> = {
     If,
     While,
+    BoolExpr,
+};
+
+BoolExpr: Box<Expr> = {
+    BoolExpr BoolOp CompExpr => Box::new(Expr::Binary(<>)),
+    CompExpr,
+};
+
+CompExpr: Box<Expr> = {
+    CompExpr CompOp AddExpr => Box::new(Expr::Binary(<>)),
     AddExpr,
 };
 
-pub AddExpr: Box<Expr> = {
+AddExpr: Box<Expr> = {
     AddExpr ExprOp Factor => Box::new(Expr::Binary(<>)),
     Factor,
 };
@@ -92,10 +102,22 @@ ExprOp: Op = {
 FactorOp: Op = {
     "*" => Op::Times,
     "/" => Op::Slash,
+    "%" => Op::Percent,
 };
 
 PipeOp: Op = {
     "|" => Op::Pipe,
+};
+
+CompOp: Op = {
+    ">" => Op::Greater,
+    "<" => Op::Lesser,
+    "=" => Op::Equals,
+};
+
+BoolOp: Op = {
+    "and" => Op::And,
+    "or"  => Op::Or,
 };
 
 Exprs = Comma<Expr>;

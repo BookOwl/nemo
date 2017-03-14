@@ -1,15 +1,17 @@
 extern crate nemo;
 
-use std::io::{stdin, stdout, Read, Write};
+use std::io::{stdin, stdout, Write};
 
 fn main() {
-    let mut stdin = stdin();
+    let stdin = stdin();
     let mut stdout = stdout();
+    println!("><> nemo v0.0.1 <><");
+    println!("Use Ctrl-C to exit.");
     loop {
         print!("> ");
-        stdout.flush();
+        stdout.flush().unwrap();
         let mut input = String::new();
-        stdin.read_line(&mut input);
+        stdin.read_line(&mut input).unwrap();
         let parsed = nemo::parser::parse_Definition(&input);
         if parsed.is_ok() {
             println!("{:?}", parsed.unwrap());
