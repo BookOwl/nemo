@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::fmt;
+use std::sync::Arc;
 use lalrpop_util;
 use ast::*;
 use parser;
@@ -8,7 +9,7 @@ macro_rules! s {
     ($e:expr) => (String::from($e));
 }
 macro_rules! prim {
-    ($e:expr) => (Value::PrimFunc(Box::new($e)));
+    ($e:expr) => (Value::PrimFunc(Arc::new(Box::new($e))));
 }
 
 #[derive(Debug, Clone)]
@@ -16,11 +17,13 @@ pub enum Error<'a> {
     ParseError(lalrpop_util::ParseError<usize, (usize, &'a str), ()>),
     InvalidTypes(String),
     Unimplemented(String),
+    UndefinedName(String),
 }
 
+#[derive(Clone)]
 pub enum Value {
     Number(f64),
-    PrimFunc(Box<Fn(Vec<Value>) -> Value>),
+    PrimFunc(Arc<Box<Fn(Vec<Value>) -> Value>>),
 }
 impl fmt::Debug for Value {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -62,10 +65,10 @@ impl<'a> Enviroment<'a> {
             prev: prev,
         }
     }
-    fn lookup(&self, name: String) -> Option<&Option<Value>> {
-        let val = self.current_frame.get(&name);
+    fn lookup(&self, name: &str) -> Option<Option<Value>> {
+        let val = self.current_frame.get(&String::from(name));
         if val.is_some() {
-            val
+            val.cloned()
         } else {
             if let Some(prev) = self.prev {
                 prev.lookup(name)
@@ -101,7 +104,16 @@ pub fn eval(source: &str) -> Result<Value, Error> {
 
 fn initial_enviroment<'a>() -> Enviroment<'a> {
     let builtins = vec![
-        ( s!("print"), prim!(|val| {println!("{:?}", val); Value::Number(0.0)}) ),
+        ( s!("print"), prim!(|val: Vec<Value>| {
+            println!("{:?}", val);
+            Value::Number(0.0)}) ),
+        ( s!("square"), prim!(|val: Vec<Value>| {
+            if let Value::Number(n) = val[0] {
+                Value::Number(n*n)
+            } else {
+                panic!("square was not passed a number!")
+            }
+        }))
     ];
     Enviroment::extend(builtins, None)
 }
@@ -119,6 +131,27 @@ fn eval_ast<'a>(ast: &Expr, env: &Enviroment) -> Result<Value, Error<'a>> {
                 _ => Err(Error::Unimplemented(format!("Operation {:?} is not implemented yet", op)))
             }
         },
+        Expr::Name(ref name) => {
+            let val = env.lookup(&name);
+            if let Some(Some(v)) = val {
+                Ok(v)
+            } else {
+                Err(Error::UndefinedName(format!("{} is not defined", name)))
+            }
+        }
+        Expr::Call(ref func, ref arg_exprs) => {
+            let func = eval_ast(func, env)?;
+            let mut args = Vec::new();
+            for arg in arg_exprs {
+                args.push(eval_ast(&arg, env)?);
+            }
+            match func {
+                Value::PrimFunc(f) => {
+                    Ok(f(args))
+                }
+                _ => Err(Error::InvalidTypes(format!("{} is not a function!", func)))
+            }
+        }
         ref x => Err(Error::Unimplemented(format!("{:?} is not implemented yet", x)))
     }
 }
