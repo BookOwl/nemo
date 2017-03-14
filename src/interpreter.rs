@@ -14,7 +14,8 @@ macro_rules! prim {
 #[derive(Debug, Clone)]
 pub enum Error<'a> {
     ParseError(lalrpop_util::ParseError<usize, (usize, &'a str), ()>),
-    InvalidType(String),
+    InvalidTypes(String),
+    Unimplemented(String),
 }
 
 pub enum Value {
@@ -106,9 +107,54 @@ fn initial_enviroment<'a>() -> Enviroment<'a> {
 }
 
 fn eval_ast<'a>(ast: &Expr, env: &Enviroment) -> Result<Value, Error<'a>> {
-    unimplemented!()
+    match *ast {
+        Expr::Number(n)            => Ok(Value::Number(n)),
+        Expr::Binary(ref lhs, ref op, ref rhs) => {
+            let (l, r) = (eval_ast(&*lhs, env)?, eval_ast(&*rhs, env)?);
+            match *op {
+                Op::Plus  => operations::plus(&l, &r),
+                Op::Minus => operations::minus(&l, &r),
+                Op::Times => operations::times(&l, &r),
+                Op::Slash => operations::slash(&l, &r),
+                _ => Err(Error::Unimplemented(format!("Operation {:?} is not implemented yet", op)))
+            }
+        },
+        ref x => Err(Error::Unimplemented(format!("{:?} is not implemented yet", x)))
+    }
 }
 
 fn run_ast<'a, 'b>(defs: Vec<Definition>, env: &Enviroment) -> Result<(), Error<'a>> {
     unimplemented!()
+}
+
+mod operations {
+    use super::*;
+    pub fn plus<'a>(l: &Value, r: &Value) -> Result<Value, Error<'a>> {
+        if let (&Value::Number(n1), &Value::Number(n2)) = (l, r) {
+            Ok(Value::Number(n1 + n2))
+        } else {
+            Err(Error::InvalidTypes(format!("Invalid types for + {:?} and {:?}", l, r)))
+        }
+    }
+    pub fn minus<'a>(l: &Value, r: &Value) -> Result<Value, Error<'a>> {
+        if let (&Value::Number(n1), &Value::Number(n2)) = (l, r) {
+            Ok(Value::Number(n1 - n2))
+        } else {
+            Err(Error::InvalidTypes(format!("Invalid types for - {:?} and {:?}", l, r)))
+        }
+    }
+    pub fn times<'a>(l: &Value, r: &Value) -> Result<Value, Error<'a>> {
+        if let (&Value::Number(n1), &Value::Number(n2)) = (l, r) {
+            Ok(Value::Number(n1 * n2))
+        } else {
+            Err(Error::InvalidTypes(format!("Invalid types for * {:?} and {:?}", l, r)))
+        }
+    }
+    pub fn slash<'a>(l: &Value, r: &Value) -> Result<Value, Error<'a>> {
+        if let (&Value::Number(n1), &Value::Number(n2)) = (l, r) {
+            Ok(Value::Number(n1 / n2))
+        } else {
+            Err(Error::InvalidTypes(format!("Invalid types for / {:?} and {:?}", l, r)))
+        }
+    }
 }
