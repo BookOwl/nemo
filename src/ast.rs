@@ -1,7 +1,7 @@
 #[derive(Debug, PartialEq, Clone)]
 pub enum Expr {
     Binary(Box<Expr>, Op, Box<Expr>),
-    Number(i32),
+    Number(f64),
     Name(String),
     Call(Box<Expr>, Vec<Box<Expr>>),
     Lambda(Vec<String>, Box<Expr>),
