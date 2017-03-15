@@ -35,8 +35,8 @@ pub enum Statement {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Prototype {
-    name: String,
-    args: Vec<String>,
+    pub name: String,
+    pub args: Vec<String>,
 }
 impl Prototype {
     pub fn new(name: String, args: Vec<String>) -> Prototype {
@@ -49,8 +49,8 @@ impl Prototype {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Definition {
-    prototype: Prototype,
-    body: Box<Expr>,
+    pub prototype: Prototype,
+    pub body: Box<Expr>,
 }
 impl Definition {
     pub fn new(prototype: Prototype, body: Box<Expr>) -> Definition {
