@@ -19,6 +19,7 @@ pub enum Error<'a> {
     InvalidTypes(String),
     Unimplemented(String),
     UndefinedName(String),
+    EmptyBlock(String),
 }
 
 #[derive(Clone)]
@@ -161,7 +162,7 @@ pub fn eval<'a, 'b, 'c>(ast: &'a Expr, env: &'b RefEnv<'b>) -> Result<Value<'b>,
             let func = eval(func, env)?;
             let mut args = Vec::new();
             for arg in arg_exprs {
-                args.push(eval(&arg, env)?);
+                args.push(eval(arg, env)?);
             }
             match func {
                 Value::PrimFunc(f) => {
@@ -173,9 +174,19 @@ pub fn eval<'a, 'b, 'c>(ast: &'a Expr, env: &'b RefEnv<'b>) -> Result<Value<'b>,
         },
         Expr::Assignment(ref name, ref val) => {
             let name = name.clone();
-            let evaled_val = eval(val, &env)?;
+            let evaled_val = eval(val, env)?;
             env.borrow_mut().set(String::from(name), Some(evaled_val));
             Ok(Value::Number(0.0))
+        },
+        Expr::Block(ref expressions) => {
+            let mut last = None;
+            for expr in expressions {
+                last = Some(eval(expr, env)?);
+            };
+            if last.is_none() {
+                return Err(Error::EmptyBlock(s!("Empty blocks can not be evaluated.")))
+            }
+            Ok(last.unwrap())
         }
         ref x => Err(Error::Unimplemented(format!("{:?} is not implemented yet", x)))
     }
