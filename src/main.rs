@@ -1,9 +1,12 @@
 extern crate nemo;
 
 use std::io::{stdin, stdout, Write};
+use std::cell::RefCell;
+use std::error::Error;
 
 fn main() {
     expression_repl();
+    //parse_repl()
 }
 
 fn expression_repl() {
@@ -11,15 +14,23 @@ fn expression_repl() {
     let mut stdout = stdout();
     println!("><> nemo v0.0.1 <><");
     println!("Use Ctrl-C to exit.");
+    let env = RefCell::new(nemo::interpreter::initial_enviroment());
     loop {
         print!("> ");
         stdout.flush().unwrap();
         let mut input = String::new();
         stdin.read_line(&mut input).unwrap();
-        match nemo::interpreter::eval(&input) {
+        let expr = match nemo::parser::parse_Expr(&input) {
+            Ok(expr) => expr,
+            Err(e) => {
+                println!("Error: {:?}", e);
+                continue;
+            }
+        };
+        match nemo::interpreter::eval(&expr, &env) {
             Ok(res) => println!("{}", res),
             Err(e)  => println!("Error: {:?}", e),
-        }
+        };
     }
 }
 
