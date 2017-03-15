@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::fmt;
 use std::sync::Arc;
+use std::cell::RefCell;
 use lalrpop_util;
 use ast::*;
 use parser;
@@ -21,41 +22,66 @@ pub enum Error<'a> {
 }
 
 #[derive(Clone)]
-pub enum Value {
+pub enum Value<'a> {
     Number(f64),
     PrimFunc(Arc<Box<Fn(Vec<Value>) -> Value>>),
+    UserFunc(Definition, Enviroment<'a>),
 }
-impl fmt::Debug for Value {
+
+impl<'a> fmt::Debug for Value<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             Value::Number(n) =>  write!(f, "Number({:?})", n),
-            Value::PrimFunc(_) => write!(f, "PrimFunc(...)")
+            Value::PrimFunc(_) => write!(f, "PrimFunc {{...}}"),
+            Value::UserFunc(ref def, _) => {
+                write!(f, "UserFunc {}(", def.prototype.name);
+                if def.prototype.args.len() >= 1 {
+                    write!(f, "{}", def.prototype.args[0]);
+                    write!(f, "{}", def.prototype.args.
+                                                  iter().
+                                                  skip(1).
+                                                  fold(String::from(""), |res, ref arg| format!("{}, {}", res, arg)));
+                }
+                write!(f, ")")
+            },
         }
     }
 }
-impl fmt::Display for Value {
+impl<'a> fmt::Display for Value<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             Value::Number(n) =>  write!(f, "{}", n),
-            Value::PrimFunc(_) => write!(f, "PrimFunc(...)")
+            Value::PrimFunc(_) => write!(f, "PrimFunc(...)"),
+            Value::UserFunc(ref def, _) => {
+                write!(f, "{}(", def.prototype.name);
+                if def.prototype.args.len() >= 1 {
+                    write!(f, "{}", def.prototype.args[0]);
+                    write!(f, "{}", def.prototype.args.
+                                                  iter().
+                                                  skip(1).
+                                                  fold(String::from(""), |res, ref arg| format!("{}, {}", res, arg)));
+                }
+                write!(f, ")")
+            },
         }
     }
 }
 
 // The format and operations of the Enviroment are inspired by SICP's scheme interpreter.
 // https://mitpress.mit.edu/sicp/full-text/book/book-Z-H-26.html
-struct Enviroment<'a> {
-    current_frame: HashMap<String, Option<Value>>,
+#[derive(Debug, Clone)]
+pub struct Enviroment<'a> {
+    current_frame: HashMap<String, Option<Value<'a>>>,
     prev: Option<&'a Enviroment<'a>>,
 }
 impl<'a> Enviroment<'a> {
-    fn new() -> Enviroment<'a> {
+    pub fn new() -> Enviroment<'a> {
         Enviroment {
             current_frame: HashMap::new(),
             prev: None,
         }
     }
-    fn extend(bindings: Vec<(String, Value)>, prev: Option<&'a Enviroment<'a>>) -> Enviroment {
+    pub fn extend(bindings: Vec<(String, Value<'a>)>, prev: Option<&'a Enviroment<'a>>) -> Enviroment<'a> {
         let mut frame = HashMap::new();
         for (key, val) in bindings {
             frame.insert(key, Some(val));
@@ -65,7 +91,7 @@ impl<'a> Enviroment<'a> {
             prev: prev,
         }
     }
-    fn lookup(&self, name: &str) -> Option<Option<Value>> {
+    pub fn lookup(&self, name: &str) -> Option<Option<Value<'a>>> {
         let val = self.current_frame.get(&String::from(name));
         if val.is_some() {
             val.cloned()
@@ -77,10 +103,10 @@ impl<'a> Enviroment<'a> {
             }
         }
     }
-    fn define(&mut self, name: String) {
+    pub fn define(&mut self, name: String) {
         self.current_frame.insert(name, None);
     }
-    fn set_value(&mut self, name: String, val: Option<Value>) -> Result<(), ()> {
+    pub fn set_value(&mut self, name: String, val: Option<Value<'a>>) -> Result<(), ()> {
         let old = self.current_frame.insert(name, val);
         if old.is_some() {
             Err(())
@@ -90,19 +116,14 @@ impl<'a> Enviroment<'a> {
     }
 }
 
-pub fn run(source: &str) -> Result<(), Error> {
+type RefEnv<'a> = RefCell<Enviroment<'a>>;
+
+pub fn run<'a>(source: &'a str, env: &'a RefEnv) -> Result<(), Error<'a>> {
     let ast = parser::parse_Program(source).map_err(Error::ParseError)?;
-    let env = initial_enviroment();
-    run_ast(ast, &env)
+    run_parsed_program(ast, &env)
 }
 
-pub fn eval(source: &str) -> Result<Value, Error> {
-    let ast = parser::parse_Expr(source).map_err(Error::ParseError)?;
-    let env = initial_enviroment();
-    eval_ast(&ast, &env)
-}
-
-fn initial_enviroment<'a>() -> Enviroment<'a> {
+pub fn initial_enviroment<'a>() -> Enviroment<'a> {
     let builtins = vec![
         ( s!("print"), prim!(|val: Vec<Value>| {
             println!("{:?}", val);
@@ -118,11 +139,12 @@ fn initial_enviroment<'a>() -> Enviroment<'a> {
     Enviroment::extend(builtins, None)
 }
 
-fn eval_ast<'a>(ast: &Expr, env: &Enviroment) -> Result<Value, Error<'a>> {
+pub fn eval<'a, 'b, 'c>(ast: &'a Expr, env: &'b RefEnv<'b>) -> Result<Value<'b>, Error<'c>> {
     match *ast {
         Expr::Number(n)            => Ok(Value::Number(n)),
         Expr::Binary(ref lhs, ref op, ref rhs) => {
-            let (l, r) = (eval_ast(&*lhs, env)?, eval_ast(&*rhs, env)?);
+            let l = eval(&*lhs, env)?;
+            let r = eval(&*rhs, env)?;
             match *op {
                 Op::Plus  => operations::plus(&l, &r),
                 Op::Minus => operations::minus(&l, &r),
@@ -132,7 +154,8 @@ fn eval_ast<'a>(ast: &Expr, env: &Enviroment) -> Result<Value, Error<'a>> {
             }
         },
         Expr::Name(ref name) => {
-            let val = env.lookup(&name);
+            let e = env.borrow();
+            let val = e.lookup(&name);
             if let Some(Some(v)) = val {
                 Ok(v)
             } else {
@@ -140,15 +163,16 @@ fn eval_ast<'a>(ast: &Expr, env: &Enviroment) -> Result<Value, Error<'a>> {
             }
         }
         Expr::Call(ref func, ref arg_exprs) => {
-            let func = eval_ast(func, env)?;
+            let func = eval(func, env)?;
             let mut args = Vec::new();
             for arg in arg_exprs {
-                args.push(eval_ast(&arg, env)?);
+                args.push(eval(&arg, env)?);
             }
             match func {
                 Value::PrimFunc(f) => {
                     Ok(f(args))
-                }
+                },
+
                 _ => Err(Error::InvalidTypes(format!("{} is not a function!", func)))
             }
         }
@@ -156,34 +180,34 @@ fn eval_ast<'a>(ast: &Expr, env: &Enviroment) -> Result<Value, Error<'a>> {
     }
 }
 
-fn run_ast<'a, 'b>(defs: Vec<Definition>, env: &Enviroment) -> Result<(), Error<'a>> {
+fn run_parsed_program<'a, 'b>(program: Vec<Definition>, env: &RefEnv) -> Result<(), Error<'a>> {
     unimplemented!()
 }
 
 mod operations {
     use super::*;
-    pub fn plus<'a>(l: &Value, r: &Value) -> Result<Value, Error<'a>> {
+    pub fn plus<'a>(l: &Value, r: &Value) -> Result<Value<'a>, Error<'a>> {
         if let (&Value::Number(n1), &Value::Number(n2)) = (l, r) {
             Ok(Value::Number(n1 + n2))
         } else {
             Err(Error::InvalidTypes(format!("Invalid types for + {:?} and {:?}", l, r)))
         }
     }
-    pub fn minus<'a>(l: &Value, r: &Value) -> Result<Value, Error<'a>> {
+    pub fn minus<'a>(l: &Value, r: &Value) -> Result<Value<'a>, Error<'a>> {
         if let (&Value::Number(n1), &Value::Number(n2)) = (l, r) {
             Ok(Value::Number(n1 - n2))
         } else {
             Err(Error::InvalidTypes(format!("Invalid types for - {:?} and {:?}", l, r)))
         }
     }
-    pub fn times<'a>(l: &Value, r: &Value) -> Result<Value, Error<'a>> {
+    pub fn times<'a>(l: &Value, r: &Value) -> Result<Value<'a>, Error<'a>> {
         if let (&Value::Number(n1), &Value::Number(n2)) = (l, r) {
             Ok(Value::Number(n1 * n2))
         } else {
             Err(Error::InvalidTypes(format!("Invalid types for * {:?} and {:?}", l, r)))
         }
     }
-    pub fn slash<'a>(l: &Value, r: &Value) -> Result<Value, Error<'a>> {
+    pub fn slash<'a>(l: &Value, r: &Value) -> Result<Value<'a>, Error<'a>> {
         if let (&Value::Number(n1), &Value::Number(n2)) = (l, r) {
             Ok(Value::Number(n1 / n2))
         } else {
