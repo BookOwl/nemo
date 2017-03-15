@@ -19,16 +19,20 @@ fn expression_repl() {
         stdout.flush().unwrap();
         let mut input = String::new();
         stdin.read_line(&mut input).unwrap();
-        let expr = match nemo::parser::parse_Expr(&input) {
-            Ok(expr) => expr,
-            Err(e) => {
-                println!("Error: {:?}", e);
-                continue;
-            }
-        };
-        match nemo::interpreter::eval(&expr, &env) {
-            Ok(res) => println!("{}", res),
-            Err(e)  => println!("Error: {:?}", e),
-        };
+        if let Ok(def) = nemo::parser::parse_Definition(&input) {
+            nemo::interpreter::define_function(def, &env);
+        } else {
+            let expr = match nemo::parser::parse_Expr(&input) {
+                Ok(expr) => expr,
+                Err(e) => {
+                    println!("Error: {:?}", e);
+                    continue;
+                }
+            };
+            match nemo::interpreter::eval(&expr, &env) {
+                Ok(res) => println!("{}", res),
+                Err(e)  => println!("Error: {:?}", e),
+            };
+        }
     }
 }

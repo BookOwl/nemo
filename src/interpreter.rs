@@ -26,7 +26,7 @@ pub enum Error<'a> {
 pub enum Value<'a> {
     Number(f64),
     PrimFunc(Arc<Box<Fn(Vec<Value>) -> Value>>),
-    UserFunc(Definition, Enviroment<'a>),
+    UserFunc(Definition, &'a RefEnv<'a>),
 }
 
 impl<'a> fmt::Debug for Value<'a> {
@@ -111,6 +111,12 @@ impl<'a> Enviroment<'a> {
 
 type RefEnv<'a> = RefCell<Enviroment<'a>>;
 
+pub fn define_function<'a>(def: Definition, env: &'a RefEnv<'a>) {
+    let name = def.prototype.name.clone();
+    let func = Value::UserFunc(def, env);
+    env.borrow_mut().set(name, Some(func));
+}
+
 pub fn run<'a>(source: &'a str, env: &'a RefEnv) -> Result<(), Error<'a>> {
     let ast = parser::parse_Program(source).map_err(Error::ParseError)?;
     run_parsed_program(ast, &env)
@@ -135,7 +141,7 @@ pub fn initial_enviroment<'a>() -> Enviroment<'a> {
     Enviroment::extend(builtins, None)
 }
 
-pub fn eval<'a, 'b, 'c>(ast: &'a Expr, env: &'b RefEnv<'b>) -> Result<Value<'b>, Error<'c>> {
+pub fn eval<'a, 'b>(ast: &'a Expr, env: &'b RefEnv<'b>) -> Result<Value<'b>, Error<'b>> {
     match *ast {
         Expr::Number(n)            => Ok(Value::Number(n)),
         Expr::Binary(ref lhs, ref op, ref rhs) => {
