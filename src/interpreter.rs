@@ -170,6 +170,12 @@ pub fn eval<'a, 'b, 'c>(ast: &'a Expr, env: &'b RefEnv<'b>) -> Result<Value<'b>,
 
                 _ => Err(Error::InvalidTypes(format!("{} is not a function!", func)))
             }
+        },
+        Expr::Assignment(ref name, ref val) => {
+            let name = name.clone();
+            let evaled_val = eval(val, &env)?;
+            env.borrow_mut().set(String::from(name), Some(evaled_val));
+            Ok(Value::Number(0.0))
         }
         ref x => Err(Error::Unimplemented(format!("{:?} is not implemented yet", x)))
     }
