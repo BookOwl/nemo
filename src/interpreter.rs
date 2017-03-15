@@ -103,16 +103,8 @@ impl<'a> Enviroment<'a> {
             }
         }
     }
-    pub fn define(&mut self, name: String) {
-        self.current_frame.insert(name, None);
-    }
-    pub fn set_value(&mut self, name: String, val: Option<Value<'a>>) -> Result<(), ()> {
-        let old = self.current_frame.insert(name, val);
-        if old.is_some() {
-            Err(())
-        } else {
-            Ok(())
-        }
+    pub fn set(&mut self, name: String, val: Option<Value<'a>>) {
+        self.current_frame.insert(name, val);
     }
 }
 

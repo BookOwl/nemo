@@ -6,9 +6,11 @@ pub enum Expr {
     Call(Box<Expr>, Vec<Box<Expr>>),
     Lambda(Vec<String>, Box<Expr>),
     Pull,
-    Block(Vec<Box<Statement>>),
+    Block(Vec<Box<Expr>>),
     If(Box<Expr>, Box<Expr>, Box<Expr>),
-    While(Box<Expr>, Box<Expr>)
+    While(Box<Expr>, Box<Expr>),
+    Assignment(String, Box<Expr>),
+    Push(Box<Expr>),
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -26,12 +28,6 @@ pub enum Op {
     Or,
 }
 
-#[derive(Debug, PartialEq, Clone)]
-pub enum Statement {
-    Assignment(String, Box<Expr>),
-    Push(Box<Expr>),
-    Expr(Box<Expr>),
-}
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Prototype {

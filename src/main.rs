@@ -49,12 +49,7 @@ fn parse_repl() {
             println!("{:?}", parsed.unwrap());
         } else {
             let parsed = nemo::parser::parse_Expr(&input);
-            if parsed.is_ok() {
-                println!("{:?}", parsed.unwrap());
-            } else {
-                let parsed = nemo::parser::parse_Statement(&input);
-                println!("{:?}", parsed.unwrap());
-            }
+            println!("{:?}", parsed.unwrap());
         }
     }
 }
