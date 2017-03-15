@@ -125,8 +125,11 @@ pub fn run<'a>(source: &'a str, env: &'a RefEnv) -> Result<(), Error<'a>> {
 
 pub fn initial_enviroment<'a>() -> Enviroment<'a> {
     let builtins = vec![
-        ( s!("print"), prim!(|val: Vec<Value>| {
-            println!("{:?}", val);
+        ( s!("print"), prim!(|args: Vec<Value>| {
+            for arg in args {
+                print!("{} ", arg);
+            }
+            println!("");
             Value::Number(0.0)}) ),
         ( s!("square"), prim!(|val: Vec<Value>| {
             if let Value::Number(n) = val[0] {
