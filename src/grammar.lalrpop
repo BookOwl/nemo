@@ -63,6 +63,7 @@ Pipe: Box<Expr> = {
 Term: Box<Expr> = {
     Num => Box::new(Expr::Number(<>)),
     Name => Box::new(Expr::Name(<>)),
+    "FinishedPipe" => Box::new(Expr::FinishedPipe),
     Call,
     "pull" => Box::new(Expr::Pull),
     "(" <Expr> ")",

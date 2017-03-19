@@ -39,6 +39,7 @@ pub enum Value {
     Number(f64),
     PrimFunc(Arc<Box<Fn(Vec<Value>) -> Value>>),
     UserFunc(Definition, Arc<RefEnv>),
+    FinishedPipe,
 }
 
 impl fmt::Debug for Value {
@@ -57,6 +58,7 @@ impl fmt::Debug for Value {
                 }
                 write!(f, ")")
             },
+            Value::FinishedPipe => write!(f, "FinishedPipe"),
         }
     }
 }
@@ -76,6 +78,7 @@ impl fmt::Display for Value {
                 }
                 write!(f, ")")
             },
+            Value::FinishedPipe => write!(f, "FinishedPipe"),
         }
     }
 }
@@ -150,7 +153,8 @@ pub fn initial_enviroment() -> Enviroment {
 
 pub fn eval<'a, 'b>(ast: &'a Expr, env: Arc<RefEnv>, this: Arc<RefCell<Box<Coroutine>>>, next: Arc<RefCell<Box<Coroutine>>>) -> Result<Value, Error<'b>> {
     match *ast {
-        Expr::Number(n)            => Ok(Value::Number(n)),
+        Expr::Number(n) => Ok(Value::Number(n)),
+        Expr::FinishedPipe => Ok(Value::FinishedPipe),
         Expr::Push(ref val) => {
             let v = eval(val, env, this, next.clone())?;
             let boxed = Box::new(v);
@@ -159,9 +163,13 @@ pub fn eval<'a, 'b>(ast: &'a Expr, env: Arc<RefEnv>, this: Arc<RefCell<Box<Corou
             Ok(Value::Number(0.0))
         },
         Expr::Pull => {
-            let ptr = this.borrow_mut().yield_with(0);
-            let boxed_val = box_from_usize(ptr);
-            Ok(*boxed_val)
+            if this.borrow().state() != State::Parked {
+                let ptr = this.borrow_mut().yield_with(0);
+                let boxed_val = box_from_usize(ptr);
+                Ok(*boxed_val)
+            } else {
+                Ok(Value::FinishedPipe)
+            }
         },
         Expr::Binary(ref lhs, Op::Pipe, ref rhs) => {
             let l = lhs.clone();

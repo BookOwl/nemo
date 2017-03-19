@@ -6,6 +6,7 @@ pub enum Expr {
     Call(Box<Expr>, Vec<Box<Expr>>),
     Lambda(Vec<String>, Box<Expr>),
     Pull,
+    FinishedPipe,
     Block(Vec<Box<Expr>>),
     If(Box<Expr>, Box<Expr>, Box<Expr>),
     While(Box<Expr>, Box<Expr>),
