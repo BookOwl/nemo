@@ -10,3 +10,6 @@ lalrpop = "0.12.5"
 [dependencies]
 lalrpop-util = "0.12.5"
 regex = "0.2"
+
+[dependencies.coroutine]
+path = "coro"

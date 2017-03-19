@@ -203,7 +203,15 @@ pub fn eval<'a, 'b>(ast: &'a Expr, env: Arc<RefEnv>, this: Arc<RefCell<Box<Corou
                 Value::PrimFunc(f) => {
                     Ok(f(args))
                 },
-
+                Value::UserFunc(ref def, ref body_env) => {
+                    let mut new_bindings = vec![];
+                    for i in 0..def.prototype.args.len() {
+                        new_bindings.push((def.prototype.args[i].clone(), args[i].clone()))
+                    }
+                    let new_env = Arc::new(RefCell::new(Enviroment::extend(new_bindings,
+                        Some(body_env.clone()))));
+                    eval(&def.body, new_env, this, next)
+                }
                 _ => Err(Error::InvalidTypes(format!("{} is not a function!", func)))
             }
         },
