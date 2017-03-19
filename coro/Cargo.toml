@@ -1,0 +1,31 @@
+[package]
+name = "coroutine"
+version = "0.7.0"
+authors = [
+    "Y. T. Chung <zonyitoo@gmail.com>",
+    "Young.Wu <doomsplayer@gmail.com>",
+    "Rustcc Developers",
+    "Denis Kolodin <deniskolodin@gmail.com>"
+]
+license = "MIT/Apache-2.0"
+repository = "https://github.com/rustcc/coroutine-rs"
+description = "Coroutine Library in Rust"
+readme = "README.md"
+homepage = "https://github.com/rustcc/coroutine-rs"
+keywords = ["coroutine", "green", "thread", "fiber"]
+
+[build-dependencies]
+gcc = "0.3"
+log = "0.3"
+
+[lib]
+name = "coroutine"
+path = "src/lib.rs"
+
+[dependencies]
+libc = "0.2"
+context = "1.0"
+log = "0.3"
+
+[dev-dependencies]
+num_cpus = "1.3"

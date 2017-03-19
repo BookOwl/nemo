@@ -3,6 +3,7 @@ use std::fmt;
 use std::sync::Arc;
 use std::cell::RefCell;
 use lalrpop_util;
+use coroutine::asymmetric::*;
 use ast::*;
 use parser;
 
@@ -13,6 +14,16 @@ macro_rules! prim {
     ($e:expr) => (Value::PrimFunc(Arc::new(Box::new($e))));
 }
 
+pub fn box_to_usize(b: Box<Value>) -> usize {
+    Box::into_raw(b) as usize
+}
+
+pub fn box_from_usize(p: usize) -> Box<Value> {
+    unsafe {
+        Box::from_raw(p as *mut Value)
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum Error<'a> {
     ParseError(lalrpop_util::ParseError<usize, (usize, &'a str), ()>),
@@ -20,16 +31,17 @@ pub enum Error<'a> {
     Unimplemented(String),
     UndefinedName(String),
     EmptyBlock(String),
+    PushedToNone,
 }
 
 #[derive(Clone)]
-pub enum Value<'a> {
+pub enum Value {
     Number(f64),
     PrimFunc(Arc<Box<Fn(Vec<Value>) -> Value>>),
-    UserFunc(Definition, &'a RefEnv<'a>),
+    UserFunc(Definition, Arc<RefEnv>),
 }
 
-impl<'a> fmt::Debug for Value<'a> {
+impl fmt::Debug for Value {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             Value::Number(n) =>  write!(f, "Number({:?})", n),
@@ -48,7 +60,7 @@ impl<'a> fmt::Debug for Value<'a> {
         }
     }
 }
-impl<'a> fmt::Display for Value<'a> {
+impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             Value::Number(n) =>  write!(f, "{}", n),
@@ -71,58 +83,53 @@ impl<'a> fmt::Display for Value<'a> {
 // The format and operations of the Enviroment are inspired by SICP's scheme interpreter.
 // https://mitpress.mit.edu/sicp/full-text/book/book-Z-H-26.html
 #[derive(Debug, Clone)]
-pub struct Enviroment<'a> {
-    current_frame: HashMap<String, Option<Value<'a>>>,
-    prev: Option<&'a Enviroment<'a>>,
+pub struct Enviroment {
+    current_frame: HashMap<String, Option<Value>>,
+    prev: Box<Option<Arc<RefEnv>>>,
 }
-impl<'a> Enviroment<'a> {
-    pub fn new() -> Enviroment<'a> {
+impl Enviroment {
+    pub fn new() -> Enviroment {
         Enviroment {
             current_frame: HashMap::new(),
-            prev: None,
+            prev: Box::new(None),
         }
     }
-    pub fn extend(bindings: Vec<(String, Value<'a>)>, prev: Option<&'a Enviroment<'a>>) -> Enviroment<'a> {
+    pub fn extend(bindings: Vec<(String, Value)>, prev: Option<Arc<RefEnv>>) -> Enviroment {
         let mut frame = HashMap::new();
         for (key, val) in bindings {
             frame.insert(key, Some(val));
         }
         Enviroment {
             current_frame: frame,
-            prev: prev,
+            prev: Box::new(prev),
         }
     }
-    pub fn lookup(&self, name: &str) -> Option<Option<Value<'a>>> {
+    pub fn lookup(&self, name: &str) -> Option<Option<Value>> {
         let val = self.current_frame.get(&String::from(name));
         if val.is_some() {
             val.cloned()
         } else {
-            if let Some(prev) = self.prev {
-                prev.lookup(name)
+            if let Some(ref prev) = *self.prev {
+                prev.borrow().lookup(name)
             } else {
                 None
             }
         }
     }
-    pub fn set(&mut self, name: String, val: Option<Value<'a>>) {
+    pub fn set(&mut self, name: String, val: Option<Value>) {
         self.current_frame.insert(name, val);
     }
 }
 
-type RefEnv<'a> = RefCell<Enviroment<'a>>;
+type RefEnv = RefCell<Enviroment>;
 
-pub fn define_function<'a>(def: Definition, env: &'a RefEnv<'a>) {
+pub fn define_function(def: Definition, env: Arc<RefEnv>) {
     let name = def.prototype.name.clone();
-    let func = Value::UserFunc(def, env);
+    let func = Value::UserFunc(def, env.clone());
     env.borrow_mut().set(name, Some(func));
 }
 
-pub fn run<'a>(source: &'a str, env: &'a RefEnv) -> Result<(), Error<'a>> {
-    let ast = parser::parse_Program(source).map_err(Error::ParseError)?;
-    run_parsed_program(ast, &env)
-}
-
-pub fn initial_enviroment<'a>() -> Enviroment<'a> {
+pub fn initial_enviroment() -> Enviroment {
     let builtins = vec![
         ( s!("print"), prim!(|args: Vec<Value>| {
             for arg in args {
@@ -141,12 +148,34 @@ pub fn initial_enviroment<'a>() -> Enviroment<'a> {
     Enviroment::extend(builtins, None)
 }
 
-pub fn eval<'a, 'b>(ast: &'a Expr, env: &'b RefEnv<'b>) -> Result<Value<'b>, Error<'b>> {
+pub fn eval<'a, 'b>(ast: &'a Expr, env: Arc<RefEnv>, this: Arc<RefCell<Box<Coroutine>>>, next: Arc<RefCell<Box<Coroutine>>>) -> Result<Value, Error<'b>> {
     match *ast {
         Expr::Number(n)            => Ok(Value::Number(n)),
+        Expr::Push(ref val) => {
+            let v = eval(val, env, this, next.clone())?;
+            let boxed = Box::new(v);
+            let ptr = box_to_usize(boxed);
+            next.borrow_mut().yield_with(ptr);
+            Ok(Value::Number(0.0))
+        },
+        Expr::Pull => {
+            let ptr = this.borrow_mut().yield_with(0);
+            let boxed_val = box_from_usize(ptr);
+            Ok(*boxed_val)
+        },
+        Expr::Binary(ref lhs, Op::Pipe, ref rhs) => {
+            let l = lhs.clone();
+            let e = env.clone();
+            let c = move|new_in, _| {
+                eval(&l, e, this.clone(), new_in);
+                0
+            };
+            let mut connection = Coroutine::spawn(c);
+            eval(rhs, env, connection, next)
+        },
         Expr::Binary(ref lhs, ref op, ref rhs) => {
-            let l = eval(&*lhs, env)?;
-            let r = eval(&*rhs, env)?;
+            let l = eval(&*lhs, env.clone(), this.clone(), next.clone())?;
+            let r = eval(&*rhs, env.clone(), this.clone(), next.clone())?;
             match *op {
                 Op::Plus  => operations::plus(&l, &r),
                 Op::Minus => operations::minus(&l, &r),
@@ -165,10 +194,10 @@ pub fn eval<'a, 'b>(ast: &'a Expr, env: &'b RefEnv<'b>) -> Result<Value<'b>, Err
             }
         }
         Expr::Call(ref func, ref arg_exprs) => {
-            let func = eval(func, env)?;
+            let func = eval(func, env.clone(), this.clone(), next.clone())?;
             let mut args = Vec::new();
             for arg in arg_exprs {
-                args.push(eval(arg, env)?);
+                args.push(eval(arg, env.clone(), this.clone(), next.clone())?);
             }
             match func {
                 Value::PrimFunc(f) => {
@@ -180,14 +209,14 @@ pub fn eval<'a, 'b>(ast: &'a Expr, env: &'b RefEnv<'b>) -> Result<Value<'b>, Err
         },
         Expr::Assignment(ref name, ref val) => {
             let name = name.clone();
-            let evaled_val = eval(val, env)?;
+            let evaled_val = eval(val, env.clone(), this.clone(), next.clone())?;
             env.borrow_mut().set(String::from(name), Some(evaled_val));
             Ok(Value::Number(0.0))
         },
         Expr::Block(ref expressions) => {
             let mut last = None;
             for expr in expressions {
-                last = Some(eval(expr, env)?);
+                last = Some(eval(expr, env.clone(), this.clone(), next.clone())?);
             };
             if last.is_none() {
                 return Err(Error::EmptyBlock(s!("Empty blocks can not be evaluated.")))
@@ -198,34 +227,34 @@ pub fn eval<'a, 'b>(ast: &'a Expr, env: &'b RefEnv<'b>) -> Result<Value<'b>, Err
     }
 }
 
-fn run_parsed_program<'a, 'b>(program: Vec<Definition>, env: &RefEnv) -> Result<(), Error<'a>> {
+fn run_parsed_program<'a>(program: Vec<Definition>, env: RefEnv) -> Result<(), Error<'a>> {
     unimplemented!()
 }
 
 mod operations {
     use super::*;
-    pub fn plus<'a>(l: &Value, r: &Value) -> Result<Value<'a>, Error<'a>> {
+    pub fn plus<'a>(l: &Value, r: &Value) -> Result<Value, Error<'a>> {
         if let (&Value::Number(n1), &Value::Number(n2)) = (l, r) {
             Ok(Value::Number(n1 + n2))
         } else {
             Err(Error::InvalidTypes(format!("Invalid types for + {:?} and {:?}", l, r)))
         }
     }
-    pub fn minus<'a>(l: &Value, r: &Value) -> Result<Value<'a>, Error<'a>> {
+    pub fn minus<'a>(l: &Value, r: &Value) -> Result<Value, Error<'a>> {
         if let (&Value::Number(n1), &Value::Number(n2)) = (l, r) {
             Ok(Value::Number(n1 - n2))
         } else {
             Err(Error::InvalidTypes(format!("Invalid types for - {:?} and {:?}", l, r)))
         }
     }
-    pub fn times<'a>(l: &Value, r: &Value) -> Result<Value<'a>, Error<'a>> {
+    pub fn times<'a>(l: &Value, r: &Value) -> Result<Value, Error<'a>> {
         if let (&Value::Number(n1), &Value::Number(n2)) = (l, r) {
             Ok(Value::Number(n1 * n2))
         } else {
             Err(Error::InvalidTypes(format!("Invalid types for * {:?} and {:?}", l, r)))
         }
     }
-    pub fn slash<'a>(l: &Value, r: &Value) -> Result<Value<'a>, Error<'a>> {
+    pub fn slash<'a>(l: &Value, r: &Value) -> Result<Value, Error<'a>> {
         if let (&Value::Number(n1), &Value::Number(n2)) = (l, r) {
             Ok(Value::Number(n1 / n2))
         } else {
