@@ -1,0 +1,12 @@
+language: rust
+rust: nightly
+
+os:
+    - linux
+    - osx
+script:
+  - rustc -V
+  - cargo -V
+  - cargo test
+  - cargo run --example simple
+  - cargo doc --no-deps
