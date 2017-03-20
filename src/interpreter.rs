@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::fmt;
 use std::sync::Arc;
 use std::cell::RefCell;
+use std::cmp::PartialEq;
 use lalrpop_util;
 use coroutine::asymmetric::*;
 use ast::*;
@@ -40,15 +41,16 @@ pub enum Value {
     PrimFunc(Arc<Box<Fn(Vec<Value>) -> Value>>),
     UserFunc(Definition, Arc<RefEnv>),
     FinishedPipe,
+    Bool(bool),
 }
 
 impl fmt::Debug for Value {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            Value::Number(n) =>  write!(f, "Number({:?})", n),
-            Value::PrimFunc(_) => write!(f, "PrimFunc {{...}}"),
+            Value::Number(n) =>  write!(f, "{}", n),
+            Value::PrimFunc(_) => write!(f, "Primative {{...}}"),
             Value::UserFunc(ref def, _) => {
-                write!(f, "UserFunc {}(", def.prototype.name);
+                write!(f, "function {}(", def.prototype.name);
                 if def.prototype.args.len() >= 1 {
                     write!(f, "{}", def.prototype.args[0]);
                     write!(f, "{}", def.prototype.args.
@@ -59,6 +61,7 @@ impl fmt::Debug for Value {
                 write!(f, ")")
             },
             Value::FinishedPipe => write!(f, "FinishedPipe"),
+            Value::Bool(t) => write!(f, "{}", t),
         }
     }
 }
@@ -66,9 +69,9 @@ impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             Value::Number(n) =>  write!(f, "{}", n),
-            Value::PrimFunc(_) => write!(f, "PrimFunc(...)"),
+            Value::PrimFunc(_) => write!(f, "Primative {{...}}"),
             Value::UserFunc(ref def, _) => {
-                write!(f, "{}(", def.prototype.name);
+                write!(f, "function {}(", def.prototype.name);
                 if def.prototype.args.len() >= 1 {
                     write!(f, "{}", def.prototype.args[0]);
                     write!(f, "{}", def.prototype.args.
@@ -79,6 +82,18 @@ impl fmt::Display for Value {
                 write!(f, ")")
             },
             Value::FinishedPipe => write!(f, "FinishedPipe"),
+            Value::Bool(t) => write!(f, "{}", t),
+        }
+    }
+}
+
+impl PartialEq for Value {
+    fn eq(&self, other: &Value) -> bool {
+        match (self, other) {
+            (&Value::Number(n1), &Value::Number(n2)) => n1 == n2,
+            (&Value::FinishedPipe, &Value::FinishedPipe) => true,
+            (&Value::Bool(b1), &Value::Bool(b2)) => b1 == b2,
+            (x1, x2) => (x1 as *const Value as usize) == (x2 as *const Value as usize),
         }
     }
 }
@@ -155,6 +170,7 @@ pub fn eval<'a, 'b>(ast: &'a Expr, env: Arc<RefEnv>, this: Arc<RefCell<Box<Corou
     match *ast {
         Expr::Number(n) => Ok(Value::Number(n)),
         Expr::FinishedPipe => Ok(Value::FinishedPipe),
+        Expr::Bool(b) => Ok(Value::Bool(b)),
         Expr::Push(ref val) => {
             let v = eval(val, env, this, next.clone())?;
             let boxed = Box::new(v);
@@ -185,10 +201,16 @@ pub fn eval<'a, 'b>(ast: &'a Expr, env: Arc<RefEnv>, this: Arc<RefCell<Box<Corou
             let l = eval(&*lhs, env.clone(), this.clone(), next.clone())?;
             let r = eval(&*rhs, env.clone(), this.clone(), next.clone())?;
             match *op {
-                Op::Plus  => operations::plus(&l, &r),
-                Op::Minus => operations::minus(&l, &r),
-                Op::Times => operations::times(&l, &r),
-                Op::Slash => operations::slash(&l, &r),
+                Op::Plus    => operations::plus(&l, &r),
+                Op::Minus   => operations::minus(&l, &r),
+                Op::Times   => operations::times(&l, &r),
+                Op::Slash   => operations::slash(&l, &r),
+                Op::Percent => operations::percent(&l, &r),
+                Op::Greater => operations::greater(&l, &r),
+                Op::Lesser  => operations::lesser(&l, &r),
+                Op::Equals  => operations::equals(&l, &r),
+                Op::And     => operations::and(&l, &r),
+                Op::Or      => operations::or(&l, &r),
                 _ => Err(Error::Unimplemented(format!("Operation {:?} is not implemented yet", op)))
             }
         },
@@ -253,28 +275,66 @@ mod operations {
         if let (&Value::Number(n1), &Value::Number(n2)) = (l, r) {
             Ok(Value::Number(n1 + n2))
         } else {
-            Err(Error::InvalidTypes(format!("Invalid types for + {:?} and {:?}", l, r)))
+            Err(Error::InvalidTypes(format!("Invalid types for \"+\": {:?} and {:?}", l, r)))
         }
     }
     pub fn minus<'a>(l: &Value, r: &Value) -> Result<Value, Error<'a>> {
         if let (&Value::Number(n1), &Value::Number(n2)) = (l, r) {
             Ok(Value::Number(n1 - n2))
         } else {
-            Err(Error::InvalidTypes(format!("Invalid types for - {:?} and {:?}", l, r)))
+            Err(Error::InvalidTypes(format!("Invalid types for \"-\": {:?} and {:?}", l, r)))
         }
     }
     pub fn times<'a>(l: &Value, r: &Value) -> Result<Value, Error<'a>> {
         if let (&Value::Number(n1), &Value::Number(n2)) = (l, r) {
             Ok(Value::Number(n1 * n2))
         } else {
-            Err(Error::InvalidTypes(format!("Invalid types for * {:?} and {:?}", l, r)))
+            Err(Error::InvalidTypes(format!("Invalid types for \"*\": {:?} and {:?}", l, r)))
         }
     }
     pub fn slash<'a>(l: &Value, r: &Value) -> Result<Value, Error<'a>> {
         if let (&Value::Number(n1), &Value::Number(n2)) = (l, r) {
             Ok(Value::Number(n1 / n2))
         } else {
-            Err(Error::InvalidTypes(format!("Invalid types for / {:?} and {:?}", l, r)))
+            Err(Error::InvalidTypes(format!("Invalid types for \"/\": {:?} and {:?}", l, r)))
+        }
+    }
+    pub fn percent<'a>(l: &Value, r: &Value) -> Result<Value, Error<'a>> {
+        if let (&Value::Number(n1), &Value::Number(n2)) = (l, r) {
+            Ok(Value::Number(n1 % n2))
+        } else {
+            Err(Error::InvalidTypes(format!("Invalid types for \"%\": {:?} and {:?}", l, r)))
+        }
+    }
+    pub fn greater<'a>(l: &Value, r: &Value) -> Result<Value, Error<'a>> {
+        if let (&Value::Number(n1), &Value::Number(n2)) = (l, r) {
+            Ok(Value::Bool(n1 > n2))
+        } else {
+            Err(Error::InvalidTypes(format!("Invalid types for \">\": {:?} and {:?}", l, r)))
+        }
+    }
+    pub fn lesser<'a>(l: &Value, r: &Value) -> Result<Value, Error<'a>> {
+        if let (&Value::Number(n1), &Value::Number(n2)) = (l, r) {
+            Ok(Value::Bool(n1 < n2))
+        } else {
+            Err(Error::InvalidTypes(format!("Invalid types for \"<\": {:?} and {:?}", l, r)))
+        }
+    }
+    pub fn equals<'a>(l: &Value, r: &Value) -> Result<Value, Error<'a>> {
+        Ok(Value::Bool(l == r))
+    }
+    pub fn and<'a>(l: &Value, r: &Value) -> Result<Value, Error<'a>> {
+        if let (&Value::Bool(n1), &Value::Bool(n2)) = (l, r) {
+            Ok(Value::Bool(n1 && n2))
+        } else {
+            Err(Error::InvalidTypes(format!("Invalid types for \"and\": {:?} and {:?}", l, r)))
+        }
+    }
+    pub fn or<'a>(l: &Value, r: &Value) -> Result<Value, Error<'a>> {
+        if let (&Value::Bool(n1), &Value::Bool(n2)) = (l, r) {
+            Ok(Value::Bool(n1 || n2))
+        } else {
+            Err(Error::InvalidTypes(format!("Invalid types for \"or\": {:?} and {:?}", l, r)))
         }
     }
 }

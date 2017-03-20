@@ -62,6 +62,7 @@ Pipe: Box<Expr> = {
 
 Term: Box<Expr> = {
     Num => Box::new(Expr::Number(<>)),
+    Bool => Box::new(Expr::Bool(<>)),
     Name => Box::new(Expr::Name(<>)),
     "FinishedPipe" => Box::new(Expr::FinishedPipe),
     Call,
@@ -72,6 +73,10 @@ Term: Box<Expr> = {
 
 Num: f64 = <s:r"[0-9]+(\.[0-9]+)?"> => s.parse::<f64>().unwrap();
 Name: String = <s:r"[a-zA-Z_][a-zA-Z0-9_]*"> => String::from(s);
+Bool: bool = {
+    "true" => true,
+    "false" => false,
+};
 
 Call: Box<Expr> = {
     "(" <Expr> ")" "(" <Exprs> ")" => Box::new(Expr::Call(<>)),

@@ -12,6 +12,7 @@ pub enum Expr {
     While(Box<Expr>, Box<Expr>),
     Assignment(String, Box<Expr>),
     Push(Box<Expr>),
+    Bool(bool),
 }
 
 #[derive(Debug, PartialEq, Clone)]
