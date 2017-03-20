@@ -283,6 +283,12 @@ pub fn eval<'a, 'b>(ast: &'a Expr, env: Arc<RefEnv>, this: Arc<RefCell<Box<Corou
         },
         Expr::Return(ref val) => {
             Err(Error::EarlyReturn(eval(val, env.clone(), this.clone(), next.clone())?))
+        },
+        Expr::While(ref cond, ref body) => {
+            while eval(cond, env.clone(), this.clone(), next.clone())?.truthy() {
+                eval(body, env.clone(), this.clone(), next.clone())?;
+            };
+            Ok(Value::Number(0.0))
         }
         ref x => Err(Error::Unimplemented(format!("{:?} is not implemented yet", x)))
     }
