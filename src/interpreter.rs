@@ -98,6 +98,13 @@ impl PartialEq for Value {
     }
 }
 
+impl Value {
+    pub fn truthy(&self) -> bool {
+        // A Value is truthy if it is not Bool(false)
+        self.ne(&Value::Bool(false))
+    }
+}
+
 // The format and operations of the Enviroment are inspired by SICP's scheme interpreter.
 // https://mitpress.mit.edu/sicp/full-text/book/book-Z-H-26.html
 #[derive(Debug, Clone)]
@@ -260,6 +267,13 @@ pub fn eval<'a, 'b>(ast: &'a Expr, env: Arc<RefEnv>, this: Arc<RefCell<Box<Corou
                 return Err(Error::EmptyBlock(s!("Empty blocks can not be evaluated.")))
             }
             Ok(last.unwrap())
+        },
+        Expr::If(ref cond, ref then, ref otherwise) => {
+            if eval(cond, env.clone(), this.clone(), next.clone())?.truthy() {
+                eval(then, env.clone(), this.clone(), next.clone())
+            } else {
+                eval(otherwise, env.clone(), this.clone(), next.clone())
+            }
         }
         ref x => Err(Error::Unimplemented(format!("{:?} is not implemented yet", x)))
     }
