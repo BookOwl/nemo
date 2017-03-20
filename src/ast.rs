@@ -13,6 +13,7 @@ pub enum Expr {
     Assignment(String, Box<Expr>),
     Push(Box<Expr>),
     Bool(bool),
+    Return(Box<Expr>),
 }
 
 #[derive(Debug, PartialEq, Clone)]

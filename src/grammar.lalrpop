@@ -21,6 +21,7 @@ pub Program: Vec<Definition> = {
 pub Expr: Box<Expr> = {
     <Name> ":=" <Expr> => Box::new(Expr::Assignment(<>)),
     "push" <Expr> => Box::new(Expr::Push(<>)),
+    "return" <Expr> => Box::new(Expr::Return(<>)),
     Closure,
 };
 

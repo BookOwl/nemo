@@ -39,7 +39,7 @@ fn expression_repl() {
                     }
                 };
                 match nemo::interpreter::eval(&expr, env.clone(), h.clone(), out.clone()) {
-                    Ok(res) => println!("{}", res),
+                    Ok(res) | Err(nemo::interpreter::Error::EarlyReturn(res)) => println!("{}", res),
                     Err(e)  => println!("Error: {:?}", e),
                 };
             }

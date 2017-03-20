@@ -33,6 +33,9 @@ pub enum Error<'a> {
     UndefinedName(String),
     EmptyBlock(String),
     PushedToNone,
+    // Not really an error, but treating early returns as one
+    // is the easiest way to implement them.
+    EarlyReturn(Value),
 }
 
 #[derive(Clone)]
@@ -247,7 +250,10 @@ pub fn eval<'a, 'b>(ast: &'a Expr, env: Arc<RefEnv>, this: Arc<RefCell<Box<Corou
                     }
                     let new_env = Arc::new(RefCell::new(Enviroment::extend(new_bindings,
                         Some(body_env.clone()))));
-                    eval(&def.body, new_env, this, next)
+                    match eval(&def.body, new_env, this, next) {
+                        Err(Error::EarlyReturn(val)) => Ok(val),
+                        r => r,
+                    }
                 }
                 _ => Err(Error::InvalidTypes(format!("{} is not a function!", func)))
             }
@@ -274,6 +280,9 @@ pub fn eval<'a, 'b>(ast: &'a Expr, env: Arc<RefEnv>, this: Arc<RefCell<Box<Corou
             } else {
                 eval(otherwise, env.clone(), this.clone(), next.clone())
             }
+        },
+        Expr::Return(ref val) => {
+            Err(Error::EarlyReturn(eval(val, env.clone(), this.clone(), next.clone())?))
         }
         ref x => Err(Error::Unimplemented(format!("{:?} is not implemented yet", x)))
     }
