@@ -189,19 +189,20 @@ pub fn eval<'a, 'b>(ast: &'a Expr, env: Arc<RefEnv>, this: Arc<RefCell<Box<Corou
             Ok(Value::Number(0.0))
         },
         Expr::Pull => {
-            if this.borrow().state() != State::Parked {
-                let ptr = this.borrow_mut().yield_with(0);
-                let boxed_val = box_from_usize(ptr);
-                Ok(*boxed_val)
-            } else {
-                Ok(Value::FinishedPipe)
-            }
+            let ptr = this.borrow_mut().yield_with(0);
+            let boxed_val = box_from_usize(ptr);
+            Ok(*boxed_val)
         },
         Expr::Binary(ref lhs, Op::Pipe, ref rhs) => {
             let l = lhs.clone();
             let e = env.clone();
-            let c = move|new_in, _| {
-                eval(&l, e, this.clone(), new_in);
+            let c = move|new_out: Arc<RefCell<Box<Coroutine>>>, _| {
+                eval(&l, e, this.clone(), new_out.clone());
+                let ptr = box_to_usize(Box::new(Value::FinishedPipe));
+                loop {
+                    let n = new_out.clone();
+                    n.borrow_mut().yield_with(ptr);
+                }
                 0
             };
             let mut connection = Coroutine::spawn(c);
