@@ -12,7 +12,7 @@ fn main() {
 
 fn expression_repl() {
     let mut in_ = Coroutine::spawn(|mut h, _| {
-        let env = Arc::new(RefCell::new(nemo::interpreter::initial_enviroment()));
+        let env = nemo::interpreter::initial_enviroment();
         let mut out = Coroutine::spawn(|h, mut datum| {
             loop {
                 println!("REPL got pushed {}", nemo::interpreter::box_from_usize(datum));

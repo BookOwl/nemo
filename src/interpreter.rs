@@ -42,7 +42,7 @@ pub enum Error<'a> {
 pub enum Value {
     Number(f64),
     PrimFunc(Arc<Box<Fn(Vec<Value>) -> Value>>),
-    UserFunc(Definition, Arc<RefEnv>),
+    UserFunc(Definition, Env),
     FinishedPipe,
     Bool(bool),
 }
@@ -113,7 +113,7 @@ impl Value {
 #[derive(Debug, Clone)]
 pub struct Enviroment {
     current_frame: HashMap<String, Option<Value>>,
-    prev: Box<Option<Arc<RefEnv>>>,
+    prev: Box<Option<Env>>,
 }
 impl Enviroment {
     pub fn new() -> Enviroment {
@@ -122,7 +122,7 @@ impl Enviroment {
             prev: Box::new(None),
         }
     }
-    pub fn extend(bindings: Vec<(String, Value)>, prev: Option<Arc<RefEnv>>) -> Enviroment {
+    pub fn extend(bindings: Vec<(String, Value)>, prev: Option<Env>) -> Enviroment {
         let mut frame = HashMap::new();
         for (key, val) in bindings {
             frame.insert(key, Some(val));
@@ -149,15 +149,23 @@ impl Enviroment {
     }
 }
 
-type RefEnv = RefCell<Enviroment>;
+type Env = Arc<RefCell<Enviroment>>;
 
-pub fn define_function(def: Definition, env: Arc<RefEnv>) {
+pub fn define_function(def: Definition, env: Env) {
     let name = def.prototype.name.clone();
     let func = Value::UserFunc(def, env.clone());
     env.borrow_mut().set(name, Some(func));
 }
 
-pub fn initial_enviroment() -> Enviroment {
+pub fn load_module_into_env<'a>(module: &'a str, env: Env) -> Result<(), Error<'a>> {
+    let defs = parser::parse_Program(module).map_err(Error::ParseError)?;
+    for def in defs {
+        define_function(def, env.clone());
+    }
+    Ok(())
+}
+
+pub fn initial_enviroment() -> Env {
     let builtins = vec![
         ( s!("print"), prim!(|args: Vec<Value>| {
             for arg in args {
@@ -173,10 +181,30 @@ pub fn initial_enviroment() -> Enviroment {
             }
         }))
     ];
-    Enviroment::extend(builtins, None)
+    let env = Arc::new(RefCell::new(Enviroment::extend(builtins, None)));
+    load_module_into_env(r#"
+    range(n) => {
+        x := 0;
+        while x < n do {
+            push x;
+            x := x + 1;
+        }
+    }
+    show_pipe() => {
+        while true do {
+            x := pull;
+            if x = FinishedPipe then {
+                return 0
+            } else {
+                print(x)
+            };
+        }
+    }
+    "#, env.clone()).unwrap();
+    env
 }
 
-pub fn eval<'a, 'b>(ast: &'a Expr, env: Arc<RefEnv>, this: Arc<RefCell<Box<Coroutine>>>, next: Arc<RefCell<Box<Coroutine>>>) -> Result<Value, Error<'b>> {
+pub fn eval<'a, 'b>(ast: &'a Expr, env: Env, this: Arc<RefCell<Box<Coroutine>>>, next: Arc<RefCell<Box<Coroutine>>>) -> Result<Value, Error<'b>> {
     match *ast {
         Expr::Number(n) => Ok(Value::Number(n)),
         Expr::FinishedPipe => Ok(Value::FinishedPipe),
@@ -295,7 +323,7 @@ pub fn eval<'a, 'b>(ast: &'a Expr, env: Arc<RefEnv>, this: Arc<RefCell<Box<Corou
     }
 }
 
-fn run_parsed_program<'a>(program: Vec<Definition>, env: RefEnv) -> Result<(), Error<'a>> {
+fn run_parsed_program<'a>(program: Vec<Definition>, env: Env) -> Result<(), Error<'a>> {
     unimplemented!()
 }
 
