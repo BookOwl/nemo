@@ -200,6 +200,26 @@ pub fn initial_enviroment() -> Env {
             };
         }
     }
+    map(f) => {
+        while true do {
+            x := pull;
+            if x = FinishedPipe then {
+                return 0
+            } else {
+                push f(x)
+            };
+        }
+    }
+    filter(f) => {
+        while true do {
+            x := pull;
+            if x = FinishedPipe then {
+                return 0
+            } else {
+                if f(x) then push x else 0
+            };
+        }
+    }
     "#, env.clone()).unwrap();
     env
 }
