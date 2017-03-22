@@ -209,6 +209,11 @@ pub fn eval<'a, 'b>(ast: &'a Expr, env: Env, this: Arc<RefCell<Box<Coroutine>>>,
         Expr::Number(n) => Ok(Value::Number(n)),
         Expr::FinishedPipe => Ok(Value::FinishedPipe),
         Expr::Bool(b) => Ok(Value::Bool(b)),
+        Expr::Lambda(ref args, ref body) => {
+            let def = Definition::new(Prototype::new("lambda".to_owned(), args.clone()), body.clone());
+            let func = Value::UserFunc(def, env.clone());
+            Ok(func)
+        }
         Expr::Push(ref val) => {
             let v = eval(val, env, this, next.clone())?;
             let boxed = Box::new(v);
