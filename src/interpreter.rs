@@ -1,10 +1,12 @@
 use std::collections::HashMap;
 use std::fmt;
-use std::sync::Arc;
+use std::thread;
+use std::sync::mpsc;
+use std::sync::{Arc, Mutex};
 use std::cell::RefCell;
 use std::cmp::PartialEq;
 use lalrpop_util;
-use coroutine::asymmetric::*;
+use queue;
 use ast::*;
 use parser;
 
@@ -42,10 +44,12 @@ pub enum Error<'a> {
 pub enum Value {
     Number(f64),
     PrimFunc(Arc<Box<Fn(Vec<Value>) -> Value>>),
-    UserFunc(Definition, Env),
+    UserFunc(Definition, ProtectedEnv),
     FinishedPipe,
     Bool(bool),
 }
+unsafe impl Send for Value{}
+unsafe impl Sync for Value{}
 
 impl fmt::Debug for Value {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -113,8 +117,10 @@ impl Value {
 #[derive(Debug, Clone)]
 pub struct Enviroment {
     current_frame: HashMap<String, Option<Value>>,
-    prev: Box<Option<Env>>,
+    prev: Box<Option<ProtectedEnv>>,
 }
+unsafe impl Send for Enviroment{}
+
 impl Enviroment {
     pub fn new() -> Enviroment {
         Enviroment {
@@ -122,7 +128,7 @@ impl Enviroment {
             prev: Box::new(None),
         }
     }
-    pub fn extend(bindings: Vec<(String, Value)>, prev: Option<Env>) -> Enviroment {
+    pub fn extend(bindings: Vec<(String, Value)>, prev: Option<ProtectedEnv>) -> Enviroment {
         let mut frame = HashMap::new();
         for (key, val) in bindings {
             frame.insert(key, Some(val));
@@ -138,7 +144,8 @@ impl Enviroment {
             val.cloned()
         } else {
             if let Some(ref prev) = *self.prev {
-                prev.borrow().lookup(name)
+                let lock = prev.lock().unwrap();
+                return lock.borrow().lookup(name);
             } else {
                 None
             }
@@ -149,15 +156,16 @@ impl Enviroment {
     }
 }
 
-type Env = Arc<RefCell<Enviroment>>;
+type ProtectedEnv = Arc<Mutex<RefCell<Enviroment>>>;
 
-pub fn define_function(def: Definition, env: Env) {
+pub fn define_function(def: Definition, env: ProtectedEnv) {
     let name = def.prototype.name.clone();
     let func = Value::UserFunc(def, env.clone());
-    env.borrow_mut().set(name, Some(func));
+    let lock = env.lock().unwrap();
+    lock.borrow_mut().set(name, Some(func));
 }
 
-pub fn load_module_into_env<'a>(module: &'a str, env: Env) -> Result<(), Error<'a>> {
+pub fn load_module_into_env<'a>(module: &'a str, env: ProtectedEnv) -> Result<(), Error<'a>> {
     let defs = parser::parse_Program(module).map_err(Error::ParseError)?;
     for def in defs {
         define_function(def, env.clone());
@@ -165,7 +173,7 @@ pub fn load_module_into_env<'a>(module: &'a str, env: Env) -> Result<(), Error<'
     Ok(())
 }
 
-pub fn initial_enviroment() -> Env {
+pub fn initial_enviroment() -> ProtectedEnv {
     let builtins = vec![
         ( s!("print"), prim!(|args: Vec<Value>| {
             for arg in args {
@@ -181,7 +189,7 @@ pub fn initial_enviroment() -> Env {
             }
         }))
     ];
-    let env = Arc::new(RefCell::new(Enviroment::extend(builtins, None)));
+    let env = Arc::new(Mutex::new(RefCell::new(Enviroment::extend(builtins, None))));
     load_module_into_env(r#"
     range(n) => {
         x := 0;
@@ -224,7 +232,7 @@ pub fn initial_enviroment() -> Env {
     env
 }
 
-pub fn eval<'a, 'b>(ast: &'a Expr, env: Env, this: Arc<RefCell<Box<Coroutine>>>, next: Arc<RefCell<Box<Coroutine>>>) -> Result<Value, Error<'b>> {
+pub fn eval<'a, 'b>(ast: &'a Expr, env: ProtectedEnv, this: Arc<Mutex<queue::Consumer<Value>>>, next: Arc<Mutex<queue::Producer<Value>>>) -> Result<Value, Error<'b>> {
     match *ast {
         Expr::Number(n) => Ok(Value::Number(n)),
         Expr::FinishedPipe => Ok(Value::FinishedPipe),
@@ -235,31 +243,24 @@ pub fn eval<'a, 'b>(ast: &'a Expr, env: Env, this: Arc<RefCell<Box<Coroutine>>>,
             Ok(func)
         }
         Expr::Push(ref val) => {
-            let v = eval(val, env, this, next.clone())?;
-            let boxed = Box::new(v);
-            let ptr = box_to_usize(boxed);
-            next.borrow_mut().yield_with(ptr);
+            let v = eval(val, env, this.clone(), next.clone())?;
+            next.lock().unwrap().push(v);
             Ok(Value::Number(0.0))
         },
         Expr::Pull => {
-            let ptr = this.borrow_mut().yield_with(0);
-            let boxed_val = box_from_usize(ptr);
-            Ok(*boxed_val)
+            let val = this.lock().unwrap().pop();
+            Ok(val)
         },
         Expr::Binary(ref lhs, Op::Pipe, ref rhs) => {
+            let (send, recv) = queue::make(1);
+            let (send, recv) = (Arc::new(Mutex::new(send)), Arc::new(Mutex::new(recv)));
             let l = lhs.clone();
             let e = env.clone();
-            let c = move|new_out: Arc<RefCell<Box<Coroutine>>>, _| {
-                eval(&l, e, this.clone(), new_out.clone());
-                let ptr = box_to_usize(Box::new(Value::FinishedPipe));
-                loop {
-                    let n = new_out.clone();
-                    n.borrow_mut().yield_with(ptr);
-                }
-                0
-            };
-            let mut connection = Coroutine::spawn(c);
-            eval(rhs, env, connection, next)
+            thread::spawn(move|| {
+                eval(&l, e, this.clone(), send.clone()).unwrap();
+                send.lock().unwrap().push(Value::FinishedPipe);
+            });
+            eval(rhs, env.clone(), recv, next)
         },
         Expr::Binary(ref lhs, ref op, ref rhs) => {
             let l = eval(&*lhs, env.clone(), this.clone(), next.clone())?;
@@ -279,8 +280,8 @@ pub fn eval<'a, 'b>(ast: &'a Expr, env: Env, this: Arc<RefCell<Box<Coroutine>>>,
             }
         },
         Expr::Name(ref name) => {
-            let e = env.borrow();
-            let val = e.lookup(&name);
+            let e = env.lock().unwrap();
+            let val = e.borrow().lookup(&name);
             if let Some(Some(v)) = val {
                 Ok(v)
             } else {
@@ -302,9 +303,12 @@ pub fn eval<'a, 'b>(ast: &'a Expr, env: Env, this: Arc<RefCell<Box<Coroutine>>>,
                     for i in 0..def.prototype.args.len() {
                         new_bindings.push((def.prototype.args[i].clone(), args[i].clone()))
                     }
-                    let new_env = Arc::new(RefCell::new(Enviroment::extend(new_bindings,
-                        Some(body_env.clone()))));
-                    match eval(&def.body, new_env, this, next) {
+                    let new_env = Arc::new(
+                                  Mutex::new(
+                                  RefCell::new(
+                                      Enviroment::extend(new_bindings, Some(body_env.clone())
+                                  ))));
+                    match eval(&def.body, new_env, this.clone(), next) {
                         Err(Error::EarlyReturn(val)) => Ok(val),
                         r => r,
                     }
@@ -315,7 +319,8 @@ pub fn eval<'a, 'b>(ast: &'a Expr, env: Env, this: Arc<RefCell<Box<Coroutine>>>,
         Expr::Assignment(ref name, ref val) => {
             let name = name.clone();
             let evaled_val = eval(val, env.clone(), this.clone(), next.clone())?;
-            env.borrow_mut().set(String::from(name), Some(evaled_val));
+            let lock = env.lock().unwrap();
+            lock.borrow_mut().set(String::from(name), Some(evaled_val));
             Ok(Value::Number(0.0))
         },
         Expr::Block(ref expressions) => {
@@ -348,7 +353,7 @@ pub fn eval<'a, 'b>(ast: &'a Expr, env: Env, this: Arc<RefCell<Box<Coroutine>>>,
     }
 }
 
-fn run_parsed_program<'a>(program: Vec<Definition>, env: Env) -> Result<(), Error<'a>> {
+fn run_parsed_program<'a>(program: Vec<Definition>, env: ProtectedEnv) -> Result<(), Error<'a>> {
     unimplemented!()
 }
 
