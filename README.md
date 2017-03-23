@@ -12,9 +12,19 @@ $ rustup overide set nightly # nemo requires nightly Rust to build
 $ cargo build
 ```
 
-You can start the REPL with `cargo run`. nemo can not currently run programs from files.
+You can start the REPL by either passing no arguments or the `--repl` flag to nemo:
 
-## Examples (may not all work yet)
+```bash
+$ nemo # --repl is optional
+```
+
+You can run a file by passing its name as an argument:
+
+```bash
+$ nemo example.nemo
+```
+
+## Examples
 
 ```
 fact(x) => if x < 2 then 1 else x * fact(n - 1)
@@ -26,6 +36,3 @@ primes_up_to(n) => range(n) | filter(is_prime)
 
 ## License
 nemo is [UNLICENSED](UNLICENSE).
-
-## Credits
-I am using a custom fork of the excellent [coroutine](https://github.com/rustcc/coroutine-rs) licensed under the MIT license. It's license can be found [here](coro/LICENSE-MIT).
