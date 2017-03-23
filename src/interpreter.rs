@@ -181,54 +181,11 @@ pub fn initial_enviroment() -> ProtectedEnv {
             }
             println!("");
             Value::Number(0.0)}) ),
-        ( s!("square"), prim!(|val: Vec<Value>| {
-            if let Value::Number(n) = val[0] {
-                Value::Number(n*n)
-            } else {
-                panic!("square was not passed a number!")
-            }
-        }))
     ];
     let env = Arc::new(Mutex::new(RefCell::new(Enviroment::extend(builtins, None))));
-    load_module_into_env(r#"
-    range(n) => {
-        x := 0;
-        while x < n do {
-            push x;
-            x := x + 1;
-        }
-    }
-    show_pipe() => {
-        while true do {
-            x := pull;
-            if x = FinishedPipe then {
-                return 0
-            } else {
-                print(x)
-            };
-        }
-    }
-    map(f) => {
-        while true do {
-            x := pull;
-            if x = FinishedPipe then {
-                return 0
-            } else {
-                push f(x)
-            };
-        }
-    }
-    filter(f) => {
-        while true do {
-            x := pull;
-            if x = FinishedPipe then {
-                return 0
-            } else {
-                if f(x) then push x else 0
-            };
-        }
-    }
-    "#, env.clone()).unwrap();
+    // builtins are baked directly into the exacutable in order to
+    // make sure that they are always available
+    load_module_into_env(include_str!("stdlib/builtins.nemo"), env.clone()).unwrap();
     env
 }
 

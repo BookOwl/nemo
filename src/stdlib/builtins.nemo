@@ -1,0 +1,40 @@
+range(n) => {
+    x := 0;
+    while x < n do {
+        push x;
+        x := x + 1;
+    }
+}
+
+show_pipe() => {
+    while true do {
+        x := pull;
+        if x = FinishedPipe then {
+            return 0
+        } else {
+            print(x)
+        };
+    }
+}
+
+map(f) => {
+    while true do {
+        x := pull;
+        if x = FinishedPipe then {
+            return 0
+        } else {
+            push f(x)
+        };
+    }
+}
+
+filter(f) => {
+    while true do {
+        x := pull;
+        if x = FinishedPipe then {
+            return 0
+        } else {
+            if f(x) then push x else 0
+        };
+    }
+}
