@@ -82,4 +82,33 @@ fn run_progam_in_file(path: &str) {
     let mut file = File::open(path).unwrap();
     let mut contents = String::new();
     file.read_to_string(&mut contents).unwrap();
+    let env = nemo::interpreter::initial_enviroment();
+    // Set up pipes
+    let (repl_producer, consumer) = queue::make(1);
+    let (repl_producer, consumer) = (Arc::new(Mutex::new(repl_producer)), Arc::new(Mutex::new(consumer)));
+    let (producer, repl_consumer) = queue::make(1);
+    let (producer, repl_consumer) = (Arc::new(Mutex::new(producer)), Arc::new(Mutex::new(repl_consumer)));
+    let p = repl_producer.clone();
+    thread::spawn(move|| {
+        loop {
+            let lock = p.lock().unwrap();
+            lock.push(nemo::interpreter::Value::FinishedPipe);
+        }
+    });
+    let c = repl_consumer.clone();
+    thread::spawn(move|| {
+        loop {
+            let lock = c.lock().unwrap();
+            lock.pop();
+        }
+    });
+    match nemo::interpreter::load_module_into_env(&contents, env.clone()) {
+        Ok(_) => {},
+        Err(e) => println!("Syntax Error: {:?}", e),
+    };
+    let nemo_main = nemo::parser::parse_Expr("main()").unwrap();
+    match nemo::interpreter::eval(&nemo_main, env, consumer, producer) {
+        Ok(_) => {},
+        Err(e) => println!("Runtime Error: {:?}", e),
+    };
 }

@@ -165,8 +165,8 @@ pub fn define_function(def: Definition, env: ProtectedEnv) {
     lock.borrow_mut().set(name, Some(func));
 }
 
-pub fn load_module_into_env<'a>(module: &'a str, env: ProtectedEnv) -> Result<(), Error<'a>> {
-    let defs = parser::parse_Program(module).map_err(Error::ParseError)?;
+pub fn load_module_into_env<'a>(module: &'a str, env: ProtectedEnv) -> Result<(), lalrpop_util::ParseError<usize, (usize, &'a str), ()>> {
+    let defs = parser::parse_Program(module)?;
     for def in defs {
         define_function(def, env.clone());
     }
