@@ -1,5 +1,5 @@
-# nemo
-A fishy programming language that loves pipes.
+![nemo logo](nemo logo.svg)
+_fish by [-stache-](https://scratch.mit.edu/users/-stache-)_
 
 ## Using
 **Warning!** nemo is in pre-pre-alpha, everything may change at a moments notice or stop working at all.
