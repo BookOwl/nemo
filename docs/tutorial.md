@@ -220,6 +220,14 @@ function lambda(x)
 ```
 (The "lambda" part of that description is homage to Scheme, one of the first languages to have first class functions. In Scheme closures are called lambdas)
 
+A closure that adds two numbers could like this:
+
+```
+> |a, b| -> a + b
+function lambda(a, b)
+````
+
+
 We can put the closure in a variable and call it from that variable:
 
 ```
