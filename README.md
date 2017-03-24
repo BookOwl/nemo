@@ -1,4 +1,4 @@
-![nemo logo](nemo logo.svg)
+![nemo logo](https://cdn.rawgit.com/BookOwl/nemo/69da2588/nemo%20logo.svg)
 
 _fish by [-stache-](https://scratch.mit.edu/users/-stache-)_
 
