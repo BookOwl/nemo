@@ -4,6 +4,7 @@
 * [range](#range)
 * [map](#map)
 * [filter](#filter)
+* [reduce](#reduce)
 * [show_pipe](#show_pipe)
 
 <a id="print"></a>
@@ -45,6 +46,17 @@ Example:
 ```
 range(10) | filter(x -> x % 2 = 0) # filters the pipeline to only have even numbers
 ```
+
+<a id="reduce"></a>
+### reduce
+The `show_pipe` function uses the supplied function to combine the elements of the pipe to a single output value, starting with the passed in start value.
+
+Example:
+```
+range(11) | reduce(|acc, x| -> acc + x, 0) # evaluates to 55
+```
+
+[This webpage](https://www.martinfowler.com/articles/collection-pipeline/reduce.html) explains `reduce` pretty well.
 
 <a id="show_pipe"></a>
 ### show_pipe

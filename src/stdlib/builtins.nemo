@@ -38,3 +38,12 @@ filter(f) => {
         };
     }
 }
+
+reduce(f, start) => {
+    acc := start;
+    while true do {
+        x := pull;
+        if x = FinishedPipe then return acc else 0;
+        acc := f(acc, x);
+    }
+}
