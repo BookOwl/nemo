@@ -225,7 +225,7 @@ A closure that adds two numbers could like this:
 ```
 > |a, b| -> a + b
 function lambda(a, b)
-````
+```
 
 
 We can put the closure in a variable and call it from that variable:
