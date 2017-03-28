@@ -192,6 +192,13 @@ pub fn initial_enviroment() -> ProtectedEnv {
 pub fn eval<'a, 'b>(ast: &'a Expr, env: ProtectedEnv, this: Arc<Mutex<queue::Consumer<Value>>>, next: Arc<Mutex<queue::Producer<Value>>>) -> Result<Value, Error<'b>> {
     match *ast {
         Expr::Number(n) => Ok(Value::Number(n)),
+        Expr::Neg(ref n) => {
+            match **n {
+                Expr::Number(n) => Ok(Value::Number(-n)),
+                // neg only works for number literals right now.
+                _ => unreachable!(),
+            }
+        }
         Expr::FinishedPipe => Ok(Value::FinishedPipe),
         Expr::Bool(b) => Ok(Value::Bool(b)),
         Expr::Lambda(ref args, ref body) => {

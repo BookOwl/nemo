@@ -65,6 +65,7 @@ Term: Box<Expr> = {
     Num => Box::new(Expr::Number(<>)),
     Bool => Box::new(Expr::Bool(<>)),
     Name => Box::new(Expr::Name(<>)),
+    "-" <Num> => Box::new(Expr::Neg(Box::new(Expr::Number(<>)))),
     "FinishedPipe" => Box::new(Expr::FinishedPipe),
     Call,
     "pull" => Box::new(Expr::Pull),

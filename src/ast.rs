@@ -14,6 +14,7 @@ pub enum Expr {
     Push(Box<Expr>),
     Bool(bool),
     Return(Box<Expr>),
+    Neg(Box<Expr>),
 }
 
 #[derive(Debug, PartialEq, Clone)]
