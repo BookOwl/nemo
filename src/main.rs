@@ -43,14 +43,20 @@ fn repl() {
     thread::spawn(move|| {
         loop {
             let lock = p.lock().unwrap();
-            lock.push(nemo::interpreter::Value::FinishedPipe);
+            match lock.try_push(nemo::interpreter::Value::FinishedPipe) {
+                Some(_) => {},
+                None => thread::sleep_ms(200),
+            }
         }
     });
     let c = repl_consumer.clone();
     thread::spawn(move|| {
         loop {
             let lock = c.lock().unwrap();
-            println!("REPL got pushed {}", lock.pop());
+            match lock.try_pop() {
+                Some(_) => {},
+                None => thread::sleep_ms(200),
+            }
         }
     });
     println!("><> nemo v{} <><", crate_version!());
