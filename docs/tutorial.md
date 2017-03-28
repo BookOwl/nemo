@@ -94,6 +94,8 @@ false
 true
 > 5 = 5
 true
+> 5 != 5
+false
 ```
 
 Note that in nemo `=` means `is equal to`, not assignment.

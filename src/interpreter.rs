@@ -233,6 +233,7 @@ pub fn eval<'a, 'b>(ast: &'a Expr, env: ProtectedEnv, this: Arc<Mutex<queue::Con
                 Op::Equals  => operations::equals(&l, &r),
                 Op::And     => operations::and(&l, &r),
                 Op::Or      => operations::or(&l, &r),
+                Op::NotEquals => operations::not_equals(&l, &r),
                 _ => Err(Error::Unimplemented(format!("Operation {:?} is not implemented yet", op)))
             }
         },
@@ -367,6 +368,9 @@ mod operations {
     }
     pub fn equals<'a>(l: &Value, r: &Value) -> Result<Value, Error<'a>> {
         Ok(Value::Bool(l == r))
+    }
+    pub fn not_equals<'a>(l: &Value, r: &Value) -> Result<Value, Error<'a>> {
+        Ok(Value::Bool(l != r))
     }
     pub fn and<'a>(l: &Value, r: &Value) -> Result<Value, Error<'a>> {
         if let (&Value::Bool(n1), &Value::Bool(n2)) = (l, r) {
