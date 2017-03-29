@@ -1,0 +1,11 @@
+cons(a, b) => m -> if m = 0 then a else b
+car(p) => p(0)
+cdr(p) => p(1)
+
+main() => {
+    nil := 0;
+    p := cons(1, cons(2, cons(3, nil)));
+    print(car(p));
+    print(car(cdr(p)));
+    print(car(cdr(cdr(p))));
+}
