@@ -43,6 +43,7 @@ pub enum Error<'a> {
 #[derive(Clone)]
 pub enum Value {
     Number(f64),
+    Str(String),
     PrimFunc(Arc<Box<Fn(Vec<Value>) -> Value>>),
     UserFunc(Definition, ProtectedEnv),
     FinishedPipe,
@@ -55,6 +56,7 @@ impl fmt::Debug for Value {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             Value::Number(n) =>  write!(f, "{}", n),
+            Value::Str(ref s) =>  write!(f, "'{}'", s),
             Value::PrimFunc(_) => write!(f, "Primative {{...}}"),
             Value::UserFunc(ref def, _) => {
                 write!(f, "function {}(", def.prototype.name);
@@ -76,6 +78,7 @@ impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             Value::Number(n) =>  write!(f, "{}", n),
+            Value::Str(ref s) =>  write!(f, "{}", s),
             Value::PrimFunc(_) => write!(f, "Primative {{...}}"),
             Value::UserFunc(ref def, _) => {
                 write!(f, "function {}(", def.prototype.name);
@@ -98,6 +101,7 @@ impl PartialEq for Value {
     fn eq(&self, other: &Value) -> bool {
         match (self, other) {
             (&Value::Number(n1), &Value::Number(n2)) => n1 == n2,
+            (&Value::Str(ref s1), &Value::Str(ref s2)) => s1 == s2,
             (&Value::FinishedPipe, &Value::FinishedPipe) => true,
             (&Value::Bool(b1), &Value::Bool(b2)) => b1 == b2,
             (x1, x2) => (x1 as *const Value as usize) == (x2 as *const Value as usize),
@@ -192,6 +196,7 @@ pub fn initial_enviroment() -> ProtectedEnv {
 pub fn eval<'a, 'b>(ast: &'a Expr, env: ProtectedEnv, this: Arc<Mutex<queue::Consumer<Value>>>, next: Arc<Mutex<queue::Producer<Value>>>) -> Result<Value, Error<'b>> {
     match *ast {
         Expr::Number(n) => Ok(Value::Number(n)),
+        Expr::Str(ref s) => Ok(Value::Str(s.clone())),
         Expr::Neg(ref n) => {
             match **n {
                 Expr::Number(n) => Ok(Value::Number(-n)),

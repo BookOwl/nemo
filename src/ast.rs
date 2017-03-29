@@ -2,6 +2,7 @@
 pub enum Expr {
     Binary(Box<Expr>, Op, Box<Expr>),
     Number(f64),
+    Str(String),
     Name(String),
     Call(Box<Expr>, Vec<Box<Expr>>),
     Lambda(Vec<String>, Box<Expr>),

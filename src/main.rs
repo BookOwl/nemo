@@ -77,7 +77,7 @@ fn repl() {
                 }
             };
             match nemo::interpreter::eval(&expr, env.clone(), consumer.clone(), producer.clone()) {
-                Ok(res) | Err(nemo::interpreter::Error::EarlyReturn(res)) => println!("{}", res),
+                Ok(res) | Err(nemo::interpreter::Error::EarlyReturn(res)) => println!("{:?}", res),
                 Err(e)  => println!("Error: {:?}", e),
             };
         }
