@@ -69,6 +69,7 @@ Term: Box<Expr> = {
     "-" <Num> => Box::new(Expr::Neg(Box::new(Expr::Number(<>)))),
     "FinishedPipe" => Box::new(Expr::FinishedPipe),
     Call,
+    Slice,
     "pull" => Box::new(Expr::Pull),
     "(" <Expr> ")",
     "{" <ExprStatements> "}" => Box::new(Expr::Block(<>))
@@ -83,8 +84,7 @@ Bool: bool = {
 };
 
 Call: Box<Expr> = {
-    "(" <Expr> ")" "(" <Exprs> ")" => Box::new(Expr::Call(<>)),
-    <n:Name> "(" <e:Exprs> ")" => Box::new(Expr::Call(Box::new(Expr::Name(n)), e)),
+    <Term> "(" <Exprs> ")" => Box::new(Expr::Call(<>)),
 };
 
 Lambda: Box<Expr> = {
@@ -92,6 +92,9 @@ Lambda: Box<Expr> = {
     "|" <Names> "|" "->" <Expr> => Box::new(Expr::Lambda(<>)),
 };
 
+Slice: Box<Expr> = {
+    <Term> "[" <Expr> "]" => Box::new(Expr::Index(<>)),
+};
 // Control flow expressions.
 
 If: Box<Expr> = {

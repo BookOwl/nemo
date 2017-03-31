@@ -7,6 +7,7 @@ use std::cell::RefCell;
 use std::cmp::PartialEq;
 use lalrpop_util;
 use queue;
+use unicode_segmentation::UnicodeSegmentation;
 use ast::*;
 use parser;
 
@@ -38,6 +39,7 @@ pub enum Error<'a> {
     // Not really an error, but treating early returns as one
     // is the easiest way to implement them.
     EarlyReturn(Value),
+    OutOfBoundIndex(String),
 }
 
 #[derive(Clone)]
@@ -318,13 +320,35 @@ pub fn eval<'a, 'b>(ast: &'a Expr, env: ProtectedEnv, this: Arc<Mutex<queue::Con
                 eval(body, env.clone(), this.clone(), next.clone())?;
             };
             Ok(Value::Number(0.0))
-        }
+        },
+        Expr::Index(ref source, ref index) => {
+            let source = eval(source, env.clone(), this.clone(), next.clone())?;
+            let index = eval(index, env.clone(), this.clone(), next.clone())?;
+            match source {
+                Value::Str(ref s) => {
+                    let s = s.clone();
+                    match index {
+                        Value::Number(n) => {
+                            let i = if n >= 0.0 {
+                                n as usize
+                            } else {
+                                s.len() - n.abs() as usize
+                            };
+                            let chars: Vec<&str> = UnicodeSegmentation::graphemes(s.as_str(), true).collect();
+                            if i >= chars.len() {
+                                return Err(Error::OutOfBoundIndex(format!("{:?} is greater than the length of {:?}", i, s)));
+                            }
+                            let c = chars[i];
+                            Ok(Value::Str(c.to_string()))
+                        }
+                        _ => Err(Error::InvalidTypes(format!("{:?} can not be used as an index", index)))
+                    }
+                },
+                _ => Err(Error::InvalidTypes(format!("{:?} is not indexable", source)))
+            }
+        },
         ref x => Err(Error::Unimplemented(format!("{:?} is not implemented yet", x)))
     }
-}
-
-fn run_parsed_program<'a>(program: Vec<Definition>, env: ProtectedEnv) -> Result<(), Error<'a>> {
-    unimplemented!()
 }
 
 mod operations {
