@@ -16,6 +16,7 @@ pub enum Expr {
     Bool(bool),
     Return(Box<Expr>),
     Neg(Box<Expr>),
+    Index(Box<Expr>, Box<Expr>),
 }
 
 #[derive(Debug, PartialEq, Clone)]
