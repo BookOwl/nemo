@@ -1,0 +1,9 @@
+main() => {
+    print('Hello, World!');
+    print('These are strings');
+    lorem := 'Lorem ipsum dolor sit amet, consectetur adipisicing elit.';
+    print(lorem);
+    emojis := '🇷🇺 🇸🇹 😀';
+    print('nemo supports emojis! 🎉');
+    print(emojis[4]);
+}
