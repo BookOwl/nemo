@@ -15,7 +15,7 @@ This is a simple introduction to nemo that should get you up and running.
 ### Installing
 Once nemo gets to a more useable state I'll provide pre-compiled binaries, but for right now you will need to compile nemo yourself:
 ```bash
-$ git clone https://github.com/BookOwl/nemo
+$ git clone https://github.com/nemo-lang/nemo.git
 $ cd nemo
 $ rustup override set nightly
 $ cargo build
@@ -99,6 +99,18 @@ false
 ```
 
 Note that in nemo `=` means `is equal to`, not assignment.
+
+
+nemo also has Unicode strings:
+```
+> 'Hello, World!'
+'Hello, World!'
+> emojis := '🇷🇺 🇸🇹 😀';
+> emojis[4]
+'😀'
+```
+
+Right now all you can do with strings is print them, subscript them, and test if they are equal.
 
 <a id="conditionals"></a>
 ### Conditionals
