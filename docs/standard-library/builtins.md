@@ -1,6 +1,7 @@
 ## nemo builtins.
 
 * [print](#print)
+* [input](#input)
 * [range](#range)
 * [map](#map)
 * [filter](#filter)
@@ -15,6 +16,15 @@ Example:
 ```
 print(1)
 print(1, 2, 3)
+```
+
+<a id="input"></a>
+### print
+The `input` function reads a line of text from stdin and returns it.
+
+Example:
+```
+x := input()
 ```
 
 <a id="range"></a>

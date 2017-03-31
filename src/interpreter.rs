@@ -5,6 +5,9 @@ use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
 use std::cell::RefCell;
 use std::cmp::PartialEq;
+use std::io;
+use std::io::prelude::*;
+use std::io::stdin;
 use lalrpop_util;
 use queue;
 use unicode_segmentation::UnicodeSegmentation;
@@ -186,7 +189,14 @@ pub fn initial_enviroment() -> ProtectedEnv {
                 print!("{} ", arg);
             }
             println!("");
-            Value::Number(0.0)}) ),
+            Value::Number(0.0)
+        })),
+        ( s!("input"), prim!(|args: Vec<Value>| {
+            let mut in_ = String::new();
+            stdin().read_line(&mut in_).unwrap();
+            in_.pop();
+            Value::Str(in_)
+        })),
     ];
     let env = Arc::new(Mutex::new(RefCell::new(Enviroment::extend(builtins, None))));
     // builtins are baked directly into the exacutable in order to
