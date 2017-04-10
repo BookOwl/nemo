@@ -43,6 +43,7 @@ pub enum Error<'a> {
     // is the easiest way to implement them.
     EarlyReturn(Value),
     OutOfBoundIndex(String),
+    UndefinedAttribute(String),
 }
 
 #[derive(Clone)]
@@ -334,30 +335,9 @@ pub fn eval<'a, 'b>(ast: &'a Expr, env: ProtectedEnv, this: Arc<Mutex<queue::Con
         Expr::Index(ref source, ref index) => {
             let source = eval(source, env.clone(), this.clone(), next.clone())?;
             let index = eval(index, env.clone(), this.clone(), next.clone())?;
-            match source {
-                Value::Str(ref s) => {
-                    let s = s.clone();
-                    match index {
-                        Value::Number(n) => {
-                            let i = if n >= 0.0 {
-                                n as usize
-                            } else {
-                                s.len() - n.abs() as usize
-                            };
-                            let chars: Vec<&str> = UnicodeSegmentation::graphemes(s.as_str(), true).collect();
-                            if i >= chars.len() {
-                                return Err(Error::OutOfBoundIndex(format!("{:?} is greater than the length of {:?}", i, s)));
-                            }
-                            let c = chars[i];
-                            Ok(Value::Str(c.to_string()))
-                        }
-                        _ => Err(Error::InvalidTypes(format!("{:?} can not be used as an index", index)))
-                    }
-                },
-                _ => Err(Error::InvalidTypes(format!("{:?} is not indexable", source)))
-            }
+            operations::index(&source, &index)
         },
-        ref x => Err(Error::Unimplemented(format!("{:?} is not implemented yet", x)))
+        ref x => Err(Error::Unimplemented(format!("{:?} is not implemented yet", x))),
     }
 }
 
@@ -430,6 +410,37 @@ mod operations {
             Ok(Value::Bool(n1 || n2))
         } else {
             Err(Error::InvalidTypes(format!("Invalid types for \"or\": {:?} and {:?}", l, r)))
+        }
+    }
+    pub fn index<'a>(obj: &Value, index: &Value) -> Result<Value, Error<'a>> {
+        match *obj {
+            Value::Str(ref s) => {
+                let s = s.clone();
+                match *index {
+                    Value::Number(n) => {
+                        let i = if n >= 0.0 {
+                            n as usize
+                        } else {
+                            s.len() - n.abs() as usize
+                        };
+                        let chars: Vec<&str> = UnicodeSegmentation::graphemes(s.as_str(), true).collect();
+                        if i >= chars.len() {
+                            return Err(Error::OutOfBoundIndex(format!("{:?} is greater than the length of {:?}", i, s)));
+                        }
+                        let c = chars[i];
+                        Ok(Value::Str(c.to_string()))
+                    },
+                    Value::Str(ref attr) => {
+                        if attr == "len" {
+                            Ok(prim!(move |_| Value::Number(UnicodeSegmentation::graphemes(s.as_str(), true).collect::<Vec<_>>().len() as f64)))
+                        } else {
+                            Err(Error::UndefinedAttribute(format!("strings do not have the attribute {}", attr)))
+                        }
+                    },
+                    _ => Err(Error::InvalidTypes(format!("{:?} can not be used as an index", index)))
+                }
+            },
+            _ => Err(Error::InvalidTypes(format!("{:?} is not indexable", obj)))
         }
     }
 }

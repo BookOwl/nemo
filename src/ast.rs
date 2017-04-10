@@ -17,6 +17,7 @@ pub enum Expr {
     Return(Box<Expr>),
     Neg(Box<Expr>),
     Index(Box<Expr>, Box<Expr>),
+    //Attribute(Box<Expr>, String),
 }
 
 #[derive(Debug, PartialEq, Clone)]

@@ -70,6 +70,7 @@ Term: Box<Expr> = {
     "FinishedPipe" => Box::new(Expr::FinishedPipe),
     Call,
     Slice,
+    Attribute,
     "pull" => Box::new(Expr::Pull),
     "(" <Expr> ")",
     "{" <ExprStatements> "}" => Box::new(Expr::Block(<>))
@@ -94,6 +95,10 @@ Lambda: Box<Expr> = {
 
 Slice: Box<Expr> = {
     <Term> "[" <Expr> "]" => Box::new(Expr::Index(<>)),
+};
+
+Attribute: Box<Expr> = {
+    <obj:Term> "." <attr:r"[a-zA-Z_][a-zA-Z0-9_]*"> => Box::new(Expr::Index(obj, Box::new(Expr::Str(attr.to_owned())))),
 };
 // Control flow expressions.
 
