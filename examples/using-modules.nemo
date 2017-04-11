@@ -1,0 +1,2 @@
+use 'lib.nemo'
+main() => print(lib.my_awesome_function(5))
