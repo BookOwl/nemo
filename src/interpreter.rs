@@ -212,12 +212,59 @@ pub fn initial_enviroment() -> ProtectedEnv {
             println!("");
             Value::Number(0.0)
         })),
-        ( s!("input"), prim!(|args: Vec<Value>| {
+        ( s!("input"), prim!(|_| {
             let mut in_ = String::new();
             stdin().read_line(&mut in_).unwrap();
             in_.pop();
             Value::Str(in_)
         })),
+        ( s!("math"), {
+            let conts = vec![
+                ( s!("ceil"), prim!(|args: Vec<Value>| {
+                    if let Value::Number(n) = args[0] {
+                        Value::Number(n.ceil())
+                    } else {
+                        panic!("math.ceil was passed {:?}, not a number!", args[0])
+                    }
+                })),
+                ( s!("floor"), prim!(|args: Vec<Value>| {
+                    if let Value::Number(n) = args[0] {
+                        Value::Number(n.floor())
+                    } else {
+                        panic!("math.floor was passed {:?}, not a number!", args[0])
+                    }
+                })),
+                ( s!("sqrt"), prim!(|args: Vec<Value>| {
+                    if let Value::Number(n) = args[0] {
+                        Value::Number(n.sqrt())
+                    } else {
+                        panic!("math.sqrt was passed {:?}, not a number!", args[0])
+                    }
+                })),
+                ( s!("sin"), prim!(|args: Vec<Value>| {
+                    if let Value::Number(n) = args[0] {
+                        Value::Number(n.sin())
+                    } else {
+                        panic!("math.sin was passed {:?}, not a number!", args[0])
+                    }
+                })),
+                ( s!("cos"), prim!(|args: Vec<Value>| {
+                    if let Value::Number(n) = args[0] {
+                        Value::Number(n.cos())
+                    } else {
+                        panic!("math.cos was passed {:?}, not a number!", args[0])
+                    }
+                })),
+                ( s!("tan"), prim!(|args: Vec<Value>| {
+                    if let Value::Number(n) = args[0] {
+                        Value::Number(n.tan())
+                    } else {
+                        panic!("math.tan was passed {:?}, not a number!", args[0])
+                    }
+                })),
+            ];
+            Value::Module(Arc::new(Mutex::new(RefCell::new(Enviroment::extend(conts, None)))))
+        }),
     ];
     let env = Arc::new(Mutex::new(RefCell::new(Enviroment::extend(builtins, None))));
     // builtins are baked directly into the exacutable in order to
