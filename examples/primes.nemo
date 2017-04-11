@@ -1,0 +1,17 @@
+integers() => {
+    n := 0;
+    while true do {
+        push n;
+        n := n + 1;
+    }
+}
+all() => reduce(|x, y| -> x and y, true)
+is_prime(n) => {
+    if n = 2 then
+        true
+    else if n < 2 then
+        false
+    else
+        range_from(2, math.ceil(math.sqrt(n)) + 1) | map(x -> (n % x) != 0) | reduce(|x, y| -> x and y, true)
+}
+main() => integers() | filter(is_prime) | show_pipe()
