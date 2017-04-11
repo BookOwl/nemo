@@ -7,7 +7,7 @@ _fish by [-stache-](https://scratch.mit.edu/users/-stache-)_
 You can build nemo with cargo:
 
 ```bash
-$ git clone https://github.com/BookOwl/nemo
+$ git clone https://github.com/nemo-lang/nemo
 $ cd nemo
 $ rustup overide set nightly # nemo requires nightly Rust to build
 $ cargo build
@@ -16,24 +16,17 @@ $ cargo build
 You can start the REPL by either passing no arguments or the `--repl` flag to nemo:
 
 ```bash
-$ nemo # --repl is optional
+$ ./target/debug/nemo # --repl is optional
 ```
 
 You can run a file by passing its name as an argument:
 
 ```bash
-$ nemo example.nemo
+$ ./target/debug/nemo example.nemo
 ```
 
 ## Examples
-
-```
-fact(x) => if x < 2 then 1 else x * fact(n - 1)
-
-is_prime(n) => range(ceil(sqrt(n))) | map(x -> n % x != 0) | all
-
-primes_up_to(n) => range(n) | filter(is_prime)
-```
+See the [examples directory](examples/) for some example nemo programs.
 
 ## License
 nemo is [UNLICENSED](UNLICENSE).
