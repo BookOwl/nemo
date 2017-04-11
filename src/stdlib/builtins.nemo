@@ -6,6 +6,14 @@ range(n) => {
     }
 }
 
+range_from(s, n) => {
+    x := s;
+    while x < n do {
+        push x;
+        x := x + 1;
+    }
+}
+
 show_pipe() => {
     while true do {
         x := pull;
