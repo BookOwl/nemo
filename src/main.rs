@@ -66,8 +66,20 @@ fn repl() {
         stdout.flush().unwrap();
         let mut input = String::new();
         stdin.read_line(&mut input).unwrap();
-        if let Ok(def) = nemo::parser::parse_Definition(&input) {
+        if let Ok(nemo::ast::Top::Definition(def)) = nemo::parser::parse_Definition(&input) {
             nemo::interpreter::define_function(def, env.clone());
+        } else if let Ok(nemo::ast::Top::Use(module_path)) = nemo::parser::parse_Use(&input) {
+            let mut file = File::open(&module_path).unwrap();
+            let mut contents = String::new();
+            file.read_to_string(&mut contents).unwrap();
+            let module_env = nemo::interpreter::initial_enviroment();
+            match nemo::interpreter::load_module_into_env(&contents, module_env.clone()) {
+                Ok(_) => {},
+                Err(e) => println!("Syntax error in module {:?}: {:?}", module_path, e),
+            };
+            let name = ::std::path::Path::new(&module_path).file_stem().unwrap().to_str().unwrap().to_owned();
+            let lock = env.lock().unwrap();
+            lock.borrow_mut().set(name, Some(nemo::interpreter::Value::Module(module_env)));
         } else {
             let expr = match nemo::parser::parse_Expr(&input) {
                 Ok(expr) => expr,

@@ -36,6 +36,11 @@ pub enum Op {
     Or,
 }
 
+#[derive(Debug, PartialEq, Clone)]
+pub enum Top {
+    Use(String),
+    Definition(Definition),    
+}
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Prototype {

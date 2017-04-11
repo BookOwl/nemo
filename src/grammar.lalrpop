@@ -1,4 +1,4 @@
-use ast::{Expr, Op, Prototype, Definition};
+use ast::{Expr, Op, Prototype, Definition, Top};
 
 grammar;
 
@@ -8,12 +8,21 @@ Prototype: Prototype = {
     <Name> "(" <Names> ")" => Prototype::new(<>),
 };
 
-pub Definition: Definition = {
-    <Prototype> "=>" <Expr> => Definition::new(<>)
+pub Definition: Top = {
+    <Prototype> "=>" <Expr> => Top::Definition(Definition::new(<>))
 };
 
-pub Program: Vec<Definition> = {
-    Definition*,
+pub Use: Top = {
+    "use" <Str> => Top::Use(<>),
+};
+
+pub Top: Top = {
+    Definition,
+    Use,
+};
+
+pub Program: Vec<Top> = {
+    Top*,
 };
 
 

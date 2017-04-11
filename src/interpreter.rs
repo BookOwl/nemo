@@ -8,6 +8,7 @@ use std::cmp::PartialEq;
 use std::io;
 use std::io::prelude::*;
 use std::io::stdin;
+use std::fs::File;
 use lalrpop_util;
 use queue;
 use unicode_segmentation::UnicodeSegmentation;
@@ -54,6 +55,7 @@ pub enum Value {
     UserFunc(Definition, ProtectedEnv),
     FinishedPipe,
     Bool(bool),
+    Module(ProtectedEnv),
 }
 unsafe impl Send for Value{}
 unsafe impl Sync for Value{}
@@ -77,6 +79,7 @@ impl fmt::Debug for Value {
             },
             Value::FinishedPipe => write!(f, "FinishedPipe"),
             Value::Bool(t) => write!(f, "{}", t),
+            Value::Module(_) => write!(f, "<nemo module>"),
         }
     }
 }
@@ -99,6 +102,7 @@ impl fmt::Display for Value {
             },
             Value::FinishedPipe => write!(f, "FinishedPipe"),
             Value::Bool(t) => write!(f, "{}", t),
+            Value::Module(_) => write!(f, "<nemo module>"),
         }
     }
 }
@@ -176,12 +180,28 @@ pub fn define_function(def: Definition, env: ProtectedEnv) {
 }
 
 pub fn load_module_into_env<'a>(module: &'a str, env: ProtectedEnv) -> Result<(), lalrpop_util::ParseError<usize, (usize, &'a str), ()>> {
-    let defs = parser::parse_Program(module)?;
-    for def in defs {
-        define_function(def, env.clone());
+    let tops = parser::parse_Program(module)?;
+    for top in tops {
+        match top {
+            Top::Definition(def) => define_function(def, env.clone()),
+            Top::Use(module_path) => {
+                let mut file = File::open(&module_path).unwrap();
+                let mut contents = String::new();
+                file.read_to_string(&mut contents).unwrap();
+                let module_env = initial_enviroment();
+                match load_module_into_env(&contents, module_env.clone()) {
+                    Ok(_) => {},
+                    Err(e) => println!("Syntax error in module {:?}: {:?}", module_path, e),
+                };
+                let name = ::std::path::Path::new(&module_path).file_stem().unwrap().to_str().unwrap().to_owned();
+                let lock = env.lock().unwrap();
+                lock.borrow_mut().set(name, Some(Value::Module(module_env)));
+            }
+        }
     }
     Ok(())
 }
+
 
 pub fn initial_enviroment() -> ProtectedEnv {
     let builtins = vec![
@@ -440,6 +460,20 @@ mod operations {
                     _ => Err(Error::InvalidTypes(format!("{:?} can not be used as an index", index)))
                 }
             },
+            Value::Module(ref env) => {
+                match index {
+                    &Value::Str(ref s) => {
+                        let e = env.lock().unwrap();
+                        let val = e.borrow().lookup(&s);
+                        if let Some(Some(v)) = val {
+                            Ok(v)
+                        } else {
+                            Err(Error::UndefinedName(format!("module has no attribute named {:?}", s)))
+                        }
+                    },
+                    _ => Err(Error::InvalidTypes(format!("{:?} can not be used as an attribute", index)))
+                }
+            }
             _ => Err(Error::InvalidTypes(format!("{:?} is not indexable", obj)))
         }
     }
