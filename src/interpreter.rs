@@ -179,17 +179,24 @@ pub fn define_function(def: Definition, env: ProtectedEnv) {
     lock.borrow_mut().set(name, Some(func));
 }
 
-pub fn load_module_into_env<'a>(module: &'a str, env: ProtectedEnv) -> Result<(), lalrpop_util::ParseError<usize, (usize, &'a str), ()>> {
+pub fn load_module_into_env<'a>(module: &'a str, env: ProtectedEnv, dir: &str) -> Result<(), lalrpop_util::ParseError<usize, (usize, &'a str), ()>> {
     let tops = parser::parse_Program(module)?;
     for top in tops {
         match top {
             Top::Definition(def) => define_function(def, env.clone()),
             Top::Use(module_path) => {
-                let mut file = File::open(&module_path).unwrap();
+                let path = if ::std::path::Path::new(&module_path).is_absolute() {
+                    module_path.clone()
+                } else {
+                    let p = ::std::path::Path::new(dir).join(&module_path);
+                    let b = p.as_path().clone();
+                    b.to_str().unwrap().to_owned()
+                };
+                let mut file = File::open(&path).unwrap();
                 let mut contents = String::new();
                 file.read_to_string(&mut contents).unwrap();
                 let module_env = initial_enviroment();
-                match load_module_into_env(&contents, module_env.clone()) {
+                match load_module_into_env(&contents, module_env.clone(), ::std::path::Path::new(&path).parent().unwrap_or(::std::path::Path::new("/")).to_str().unwrap()) {
                     Ok(_) => {},
                     Err(e) => println!("Syntax error in module {:?}: {:?}", module_path, e),
                 };
@@ -269,7 +276,7 @@ pub fn initial_enviroment() -> ProtectedEnv {
     let env = Arc::new(Mutex::new(RefCell::new(Enviroment::extend(builtins, None))));
     // builtins are baked directly into the exacutable in order to
     // make sure that they are always available
-    load_module_into_env(include_str!("stdlib/builtins.nemo"), env.clone()).unwrap();
+    load_module_into_env(include_str!("stdlib/builtins.nemo"), env.clone(), ".").unwrap();
     env
 }
 

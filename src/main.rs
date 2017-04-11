@@ -73,7 +73,7 @@ fn repl() {
             let mut contents = String::new();
             file.read_to_string(&mut contents).unwrap();
             let module_env = nemo::interpreter::initial_enviroment();
-            match nemo::interpreter::load_module_into_env(&contents, module_env.clone()) {
+            match nemo::interpreter::load_module_into_env(&contents, module_env.clone(), ".") {
                 Ok(_) => {},
                 Err(e) => println!("Syntax error in module {:?}: {:?}", module_path, e),
             };
@@ -120,7 +120,7 @@ fn run_progam_in_file(path: &str) {
             lock.pop();
         }
     });
-    match nemo::interpreter::load_module_into_env(&contents, env.clone()) {
+    match nemo::interpreter::load_module_into_env(&contents, env.clone(), ::std::path::Path::new(path).parent().unwrap().to_str().unwrap()) {
         Ok(_) => {},
         Err(e) => println!("Syntax Error: {:?}", e),
     };
