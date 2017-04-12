@@ -9,7 +9,7 @@ You can build nemo with cargo:
 ```bash
 $ git clone https://github.com/nemo-lang/nemo
 $ cd nemo
-$ rustup overide set nightly # nemo requires nightly Rust to build
+$ rustup override set nightly # nemo requires nightly Rust to build
 $ cargo build
 ```
 
