@@ -273,7 +273,7 @@ The 5 got pushed from the first block to the second block.
 
 Like in the shell, pipes in nemo run in parallel.
 
-nemo has several built in functions for working with pipes, check out the [builtins docs](standard-libary/buitlins.md) for more.
+nemo has several built in functions for working with pipes, check out the [builtins docs](standard-library/buitlins.md) for more.
 
 
 <a id="running-a-file"></a>
