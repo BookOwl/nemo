@@ -176,7 +176,7 @@ We can also use it in an expression:
 
 <a id="loops-and-blocks"></a>
 ### Loops and Blocks
-Blocks allow us to have multiple expression execute one after another. You create them by using curly putting your expressions in curly braces (`{` and `}`) separated by semicolons (`;`).
+Blocks allow us to have multiple expressions execute one after another. You create them by using curly putting your expressions in curly braces (`{` and `}`) separated by semicolons (`;`).
 
 ```
 > {1; 2; 3}
