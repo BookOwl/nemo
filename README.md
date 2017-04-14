@@ -3,13 +3,13 @@
 _fish by [-stache-](https://scratch.mit.edu/users/-stache-)_
 
 ## Using
-**Warning!** nemo is in pre-pre-alpha, everything may change at a moments notice or stop working at all.
+**Warning!** nemo is in pre-pre-alpha, everything may change at a moment's notice or stop working at all.
 You can build nemo with cargo:
 
 ```bash
 $ git clone https://github.com/nemo-lang/nemo
 $ cd nemo
-$ rustup overide set nightly # nemo requires nightly Rust to build
+$ rustup override set nightly # nemo requires nightly Rust to build
 $ cargo build
 ```
 
