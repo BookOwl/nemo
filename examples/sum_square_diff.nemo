@@ -1,0 +1,6 @@
+main() => print(square_of_sum(100) - sum_of_squares(100))
+sum_of_squares(n) => range(n+1) | map(x -> x * x) | reduce(|a, b | -> a + b, 0)
+square_of_sum(n) => {
+	r := range(n+1) | reduce(|a, b | -> a + b, 0);
+	r*r
+}
