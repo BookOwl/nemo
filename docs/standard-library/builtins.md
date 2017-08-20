@@ -19,7 +19,7 @@ print(1, 2, 3)
 ```
 
 <a id="input"></a>
-### print
+### input
 The `input` function reads a line of text from stdin and returns it.
 
 Example:
